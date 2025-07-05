@@ -8,9 +8,8 @@ add_compile_options(-Wall -Wextra -pedantic -Werror)
 
 include_directories(include)
 
-add_library(quaternionlib
-    src/Quaternion.cpp
-)
+add_library(quaternionlib INTERFACE)
+target_include_directories(quaternionlib INTERFACE include)
 
 add_executable(quaternion_tests tests/main.cpp)
 target_link_libraries(quaternion_tests PRIVATE quaternionlib)
