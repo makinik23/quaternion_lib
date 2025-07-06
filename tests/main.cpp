@@ -10,9 +10,9 @@ int main()
     auto start = high_resolution_clock::now();
 
     Quaternion<double> q{1.0, 2.0, 3.0, 4.0};
-    // std::cout << "Norm:       " << q.Norm() << '\n';
-    // std::cout << "Normalized: " << q.Normalize() << '\n';
-    // std::cout << "Conjugate:  " << q.Conjugate() << '\n';
+    std::cout << "Norm:       " << q.Norm() << '\n';
+    std::cout << "Normalized: " << q.Normalize() << '\n';
+    std::cout << "Conjugate:  " << q.Conjugate() << '\n';
 
     auto end = high_resolution_clock::now();
     auto duration = duration_cast<microseconds>(end - start);
