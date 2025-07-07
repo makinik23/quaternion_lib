@@ -3,13 +3,13 @@ project(quaternionlib LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_compile_options(-Wall -Wextra -pedantic -Werror)
-
-include_directories(include)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_library(quaternionlib INTERFACE)
-target_include_directories(quaternionlib INTERFACE include)
+target_include_directories(quaternionlib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_executable(quaternion_tests tests/main.cpp)
-target_link_libraries(quaternion_tests PRIVATE quaternionlib)
+enable_testing()
+add_subdirectory(tests)
