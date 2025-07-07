@@ -35,7 +35,7 @@ namespace quaternionlib
                 { t * s } -> std::same_as<T>;
             };
         
-        template <typename T> // TODO: necessary??? or to be repaired, may require another typename
+        template <typename T> // TODO: necessary??? or to be repaired
         static inline constexpr auto is_quaternion_compatible_v =
             requires(T t, T s)
             {
