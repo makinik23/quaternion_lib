@@ -9,7 +9,8 @@ int main()
 
     auto start = high_resolution_clock::now();
 
-    Quaternion<double> q = {1.0, 2.0, 3.0, 4.0};
+    Quaternion<double> q;
+    q = {1, 2, 3, 4};
     Quaternion<float> q2 = {1, 2, 3, 4};
     q = std::move(q2);
 

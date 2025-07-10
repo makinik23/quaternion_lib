@@ -53,8 +53,8 @@ namespace quaternionlib
         template <typename T, typename S>
         concept ScalarMultiplicable = is_scalar_multiplicable_v<T, S>;
 
-        template <typename T, typename S>
-        concept QuaternionConvertible = is_convertible_v<T, S>;
+        template <typename From_, typename To_>
+        concept QuaternionConvertible = is_convertible_v<From_, To_>;
 
         template <typename T, typename S>
         concept Multipliable = is_multipliable_v<T, S>;
@@ -63,6 +63,38 @@ namespace quaternionlib
         concept QuaternionCompatible = is_quaternion_compatible_v<T>;
     } // namespace concepts
 
+    template <concepts::FloatingPoint T>
+    struct AngleAxis // TODO optionaly convert quaternion to angle-axis
+    {
+        T angle{};
+        T axis_x{}, axis_y{}, axis_z{};
+
+        constexpr AngleAxis() noexcept = default;
+
+        explicit constexpr AngleAxis(T angle, T x, T y, T z) noexcept
+            : angle(angle), axis_x(x), axis_y(y), axis_z(z) {}
+    };
+
+    template <concepts::FloatingPoint T>
+    struct Matrix3x3 // TODO change to std::array if it is more efficient, or Maciek's lib
+    {                // TODO optionaly convert quaternion to matrix
+        T m[3][3]{};
+
+        constexpr Matrix3x3() noexcept = default;
+
+        constexpr Matrix3x3(
+            T m00, T m01, T m02,
+            T m10, T m11, T m12,
+            T m20, T m21, T m22) noexcept
+            : m{{m00, m01, m02},
+                {m10, m11, m12},
+                {m20, m21, m22}}
+        {}
+
+        constexpr T* operator[](std::size_t row) noexcept { return m[row]; }
+        constexpr const T* operator[](std::size_t row) const noexcept { return m[row]; }
+    };
+    
     template <concepts::FloatingPoint T>
     class Quaternion final
     {
@@ -86,6 +118,7 @@ namespace quaternionlib
 
         // hicpp-explicit-conversions
         constexpr Quaternion(std::initializer_list<T> values);
+        constexpr auto operator=(std::initializer_list<T> values) -> Quaternion<T>&;
 
         constexpr Quaternion(const Quaternion& other) noexcept = default;
         constexpr auto operator=(const Quaternion& other) noexcept -> Quaternion<T>&;
@@ -100,6 +133,10 @@ namespace quaternionlib
         template <concepts::FloatingPoint U>
         requires concepts::QuaternionConvertible<U, T>
         constexpr auto operator=(Quaternion<U>&& other) noexcept -> Quaternion<T>&;
+
+        explicit constexpr Quaternion(const AngleAxis<T>& angleAxis) noexcept; // TODO operator overload
+
+        explicit constexpr Quaternion(const Matrix3x3<T>& matrix) noexcept;
 
         [[nodiscard]] constexpr T X() const noexcept;
         [[nodiscard]] constexpr T Y() const noexcept;
@@ -168,6 +205,26 @@ namespace quaternionlib
     }
 
     template <concepts::FloatingPoint T>
+    constexpr auto Quaternion<T>::operator=(std::initializer_list<T> values) -> Quaternion<T>&
+    {
+        if (values.size() != 3 && values.size() != 4) [[unlikely]]
+        {
+            throw std::invalid_argument("Quaternion requires at least 3 values (x, y, z).");
+        }
+
+        else [[likely]]
+        {
+            auto it = values.begin();
+            _x = (it != values.end()) ? *it++ : T{};
+            _y = (it != values.end()) ? *it++ : T{};
+            _z = (it != values.end()) ? *it++ : T{};
+            _w = (it != values.end()) ? *it++ : T{1};
+
+            return *this;
+        }
+    }
+
+    template <concepts::FloatingPoint T>
     constexpr auto Quaternion<T>::operator=(const Quaternion& other) noexcept -> Quaternion<T>&
     {
         if (this != &other)
@@ -184,7 +241,7 @@ namespace quaternionlib
     template <concepts::FloatingPoint T>
     constexpr auto Quaternion<T>::operator=(Quaternion&& other) noexcept -> Quaternion<T>&
     {
-        if (this != &other) [[likely]]
+        if (this != &other)
         {
             _x = std::move(other._x);
             _y = std::move(other._y);
@@ -204,6 +261,7 @@ namespace quaternionlib
         _y = static_cast<T>(std::move(other.Y()));
         _z = static_cast<T>(std::move(other.Z()));
         _w = static_cast<T>(std::move(other.W()));
+
         return *this;
     }
 
@@ -214,8 +272,53 @@ namespace quaternionlib
         : _x{static_cast<T>(std::move(other.X()))},
         _y{static_cast<T>(std::move(other.Y()))},
         _z{static_cast<T>(std::move(other.Z()))},
-        _w{static_cast<T>(std::move(other.W()))}
-    {}
+        _w{static_cast<T>(std::move(other.W()))} {}
+
+    template<concepts::FloatingPoint T>
+    constexpr Quaternion<T>::Quaternion(const AngleAxis<T>& aa) noexcept
+    : _x{std::sin(aa.angle / 2) * aa.axis_x},
+      _y{std::sin(aa.angle / 2) * aa.axis_y},
+      _z{std::sin(aa.angle / 2) * aa.axis_z},
+      _w{std::cos(aa.angle / 2)} {}
+
+    template <concepts::FloatingPoint T>
+    constexpr Quaternion<T>::Quaternion(const Matrix3x3<T>& m) noexcept
+    {
+        const T trace = m[0][0] + m[1][1] + m[2][2];
+
+        if (trace > T(0))
+        {
+            const T s = std::sqrt(trace + T(1)) * T(2); // s = 4 * w
+            _w = T(0.25) * s;
+            _x = (m[2][1] - m[1][2]) / s;
+            _y = (m[0][2] - m[2][0]) / s;
+            _z = (m[1][0] - m[0][1]) / s;
+        }
+        else if (m[0][0] > m[1][1] && m[0][0] > m[2][2])
+        {
+            const T s = std::sqrt(T(1) + m[0][0] - m[1][1] - m[2][2]) * T(2); // s = 4 * x
+            _w = (m[2][1] - m[1][2]) / s;
+            _x = T(0.25) * s;
+            _y = (m[0][1] + m[1][0]) / s;
+            _z = (m[0][2] + m[2][0]) / s;
+        }
+        else if (m[1][1] > m[2][2])
+        {
+            const T s = std::sqrt(T(1) + m[1][1] - m[0][0] - m[2][2]) * T(2); // s = 4 * y
+            _w = (m[0][2] - m[2][0]) / s;
+            _x = (m[0][1] + m[1][0]) / s;
+            _y = T(0.25) * s;
+            _z = (m[1][2] + m[2][1]) / s;
+        }
+        else
+        {
+            const T s = std::sqrt(T(1) + m[2][2] - m[0][0] - m[1][1]) * T(2); // s = 4 * z
+            _w = (m[1][0] - m[0][1]) / s;
+            _x = (m[0][2] + m[2][0]) / s;
+            _y = (m[1][2] + m[2][1]) / s;
+            _z = T(0.25) * s;
+        }
+    }
 
     template <concepts::FloatingPoint T>
     constexpr T Quaternion<T>::X() const noexcept 

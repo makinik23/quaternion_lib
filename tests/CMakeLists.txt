@@ -7,7 +7,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-add_executable(test_quaternion_constructors test.cpp main.cpp)
+add_executable(test_quaternion_constructors test.cpp)
 
 target_include_directories(test_quaternion_constructors
   PRIVATE ${PROJECT_SOURCE_DIR}/include/quaternionlib
