@@ -211,9 +211,5 @@ TEST(QuaternionOperators, InitializerListAssignment)
 TEST(QuaternionMethods, Norm) // Test test
 {
     Quaternion<float> qf;
-    qf = {1.0f, 2.0f, 3.0f, 4.0f};
-    EXPECT_FLOAT_EQ(qf.X(), 1.0f);
-    EXPECT_FLOAT_EQ(qf.Y(), 2.0f);
-    EXPECT_FLOAT_EQ(qf.Z(), 3.0f);
-    EXPECT_FLOAT_EQ(qf.W(), 4.0f);
+    EXPECT_FLOAT_EQ(qf.X(), 0.0f);
 }

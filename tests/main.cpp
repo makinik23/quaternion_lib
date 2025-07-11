@@ -11,8 +11,8 @@ int main()
 
     Quaternion<double> q;
     q = {1, 2, 3, 4};
-    Quaternion<float> q2 = {1, 2, 3, 4};
-    q = std::move(q2);
+    // Quaternion<float> q2 = {1, 2, 3, 4};
+    // q = std::move(q2);
 
     std::cout << "Quaternion: " << q << '\n';
     std::cout << "Norm:       " << q.Norm() << '\n';

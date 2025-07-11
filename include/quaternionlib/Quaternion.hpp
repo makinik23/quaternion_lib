@@ -10,7 +10,7 @@ namespace quaternionlib
 {
     namespace concepts
     {
-        template <typename T, typename S> // TODO: check if one of them is a scalar
+        template <typename T, typename S> // TODO: check if one of them is a scalar, add concept scalar
         static inline constexpr auto is_scalar_multiplicable_v =
             requires(T t, S s)
             {
@@ -19,14 +19,7 @@ namespace quaternionlib
             };
 
         template <typename T>
-        static inline constexpr auto is_floating_point_v = std::is_floating_point<T>::value and
-            requires(T v)
-            {
-                { v + v } -> std::same_as<T>;
-                { v - v } -> std::same_as<T>;
-                { v * v } -> std::same_as<T>;
-                { -v } -> std::same_as<T>;
-            };
+        static inline constexpr auto is_floating_point_v = std::is_floating_point<T>::value;
 
         template <typename T, typename S>
         static inline constexpr auto is_multipliable_v =
@@ -48,7 +41,14 @@ namespace quaternionlib
         static inline constexpr auto is_convertible_v = std::is_convertible_v<From_, To_>;
 
         template <typename T>
-        concept FloatingPoint = is_floating_point_v<T>;
+        concept FloatingPoint = is_floating_point_v<T> and requires(T v)
+        {
+            { v + v } -> std::same_as<T>;
+            { v - v } -> std::same_as<T>;
+            { v * v } -> std::same_as<T>;
+            { v / v} -> std::same_as<T>;
+            { -v } -> std::same_as<T>;
+        };
         
         template <typename T, typename S>
         concept ScalarMultiplicable = is_scalar_multiplicable_v<T, S>;
@@ -104,9 +104,19 @@ namespace quaternionlib
 
         constexpr ~Quaternion() noexcept = default;
 
-        explicit constexpr Quaternion(T x, T y, T z, T w) noexcept;
+        explicit constexpr Quaternion(const T& x, const T& y, const T& z, const T& w) noexcept; // const& ?
 
-        constexpr Quaternion(T x, T y, T z) noexcept; // add explicit or not???
+        constexpr Quaternion(const T& x, const T& y, const T& z) noexcept; // add explicit or not???
+
+        // hicpp-explicit-conversions
+        constexpr Quaternion(std::initializer_list<T> values);
+        constexpr auto operator=(std::initializer_list<T> values) -> Quaternion<T>&;
+
+        constexpr Quaternion(const Quaternion<T>& other) noexcept;
+        constexpr auto operator=(const Quaternion<T>& other) noexcept -> Quaternion<T>&;
+
+        constexpr Quaternion(Quaternion<T>&& other) noexcept;
+        constexpr auto operator=(Quaternion<T>&& other) noexcept -> Quaternion<T>&;
 
         template <concepts::FloatingPoint U>
             requires concepts::QuaternionConvertible<U, T>
@@ -115,16 +125,6 @@ namespace quaternionlib
         template <concepts::FloatingPoint U>
             requires concepts::QuaternionConvertible<U, T>
         constexpr auto operator=(const Quaternion<U>& other) noexcept -> Quaternion<T>&;
-
-        // hicpp-explicit-conversions
-        constexpr Quaternion(std::initializer_list<T> values);
-        constexpr auto operator=(std::initializer_list<T> values) -> Quaternion<T>&;
-
-        constexpr Quaternion(const Quaternion& other) noexcept = default;
-        constexpr auto operator=(const Quaternion& other) noexcept -> Quaternion<T>&;
-
-        constexpr Quaternion(Quaternion&& other) noexcept = default;
-        constexpr auto operator=(Quaternion&& other) noexcept -> Quaternion<T>&;
 
         template <concepts::FloatingPoint U>
             requires concepts::QuaternionConvertible<U, T>
@@ -138,53 +138,30 @@ namespace quaternionlib
 
         explicit constexpr Quaternion(const Matrix3x3<T>& matrix) noexcept;
 
-        [[nodiscard]] constexpr T X() const noexcept;
-        [[nodiscard]] constexpr T Y() const noexcept;
-        [[nodiscard]] constexpr T Z() const noexcept;
-        [[nodiscard]] constexpr T W() const noexcept;
+        [[nodiscard]] constexpr auto X() const noexcept -> T;
+        [[nodiscard]] constexpr auto Y() const noexcept -> T;
+        [[nodiscard]] constexpr auto Z() const noexcept -> T;
+        [[nodiscard]] constexpr auto W() const noexcept -> T;
 
-        [[nodiscard]] constexpr T Norm() const noexcept;
-        [[nodiscard]] constexpr Quaternion Normalize() const noexcept;
-        [[nodiscard]] constexpr Quaternion Conjugate() const noexcept;
+        [[nodiscard]] constexpr auto Norm() const noexcept -> T;
+        [[nodiscard]] constexpr auto SquaredNorm() const noexcept -> T;
+        [[nodiscard]] constexpr auto Normalize() const noexcept -> Quaternion<T>;
+        [[nodiscard]] constexpr auto Conjugate() const noexcept -> Quaternion<T>;
 
-        friend std::ostream& operator<<(std::ostream& os, const Quaternion& q)
-        {
-            return os << "Quaternion(" << q._x << ", " << q._y << ", "
-                    << q._z << ", " << q._w << ")";
-        }
+        template <concepts::FloatingPoint U>
+        friend constexpr auto operator<<(std::ostream&, const Quaternion<U>&) -> std::ostream&;
 
     private:
         T _x{}, _y{}, _z{}, _w{static_cast<T>(1)}; // cos moze byc nie tak
     };
 
     template <concepts::FloatingPoint T>
-    constexpr Quaternion<T>::Quaternion(T x, T y, T z, T w) noexcept
+    constexpr Quaternion<T>::Quaternion(const T& x, const T& y, const T& z, const T& w) noexcept
         : _x(x), _y(y), _z(z), _w(w) {}
 
     template <concepts::FloatingPoint T>
-    constexpr Quaternion<T>::Quaternion(T x, T y, T z) noexcept
+    constexpr Quaternion<T>::Quaternion(const T& x, const T& y, const T& z) noexcept
         : _x(x), _y(y), _z(z), _w(static_cast<T>(1)) {}
-
-    template <concepts::FloatingPoint T>
-    template <concepts::FloatingPoint U>
-        requires concepts::QuaternionConvertible<U, T>
-    constexpr Quaternion<T>::Quaternion(const Quaternion<U>& other) noexcept
-        : _x(static_cast<T>(other.X())),
-          _y(static_cast<T>(other.Y())),
-          _z(static_cast<T>(other.Z())),
-          _w(static_cast<T>(other.W())) {}
-
-    template <concepts::FloatingPoint T>
-    template <concepts::FloatingPoint U>
-        requires concepts::QuaternionConvertible<U, T>
-    constexpr auto Quaternion<T>::operator=(const Quaternion<U>& other) noexcept -> Quaternion<T>&
-    {
-        _x = static_cast<T>(other.X());
-        _y = static_cast<T>(other.Y());
-        _z = static_cast<T>(other.Z());
-        _w = static_cast<T>(other.W());
-        return *this;
-    }
 
     template <concepts::FloatingPoint T>
     constexpr Quaternion<T>::Quaternion(std::initializer_list<T> values)
@@ -225,7 +202,14 @@ namespace quaternionlib
     }
 
     template <concepts::FloatingPoint T>
-    constexpr auto Quaternion<T>::operator=(const Quaternion& other) noexcept -> Quaternion<T>&
+    constexpr Quaternion<T>::Quaternion(const Quaternion<T>& other) noexcept
+        : _x(other._x),
+          _y(other._y),
+          _z(other._z),
+          _w(other._w) {}
+    
+    template <concepts::FloatingPoint T>
+    constexpr auto Quaternion<T>::operator=(const Quaternion<T>& other) noexcept -> Quaternion<T>&
     {
         if (this != &other)
         {
@@ -239,7 +223,14 @@ namespace quaternionlib
     }
 
     template <concepts::FloatingPoint T>
-    constexpr auto Quaternion<T>::operator=(Quaternion&& other) noexcept -> Quaternion<T>&
+    constexpr Quaternion<T>::Quaternion(Quaternion<T>&& other) noexcept
+        : _x{std::move(other._x)},
+          _y{std::move(other._y)},
+          _z{std::move(other._z)},
+          _w{std::move(other._w)} {}
+
+    template <concepts::FloatingPoint T>
+    constexpr auto Quaternion<T>::operator=(Quaternion<T>&& other) noexcept -> Quaternion<T>&
     {
         if (this != &other)
         {
@@ -248,6 +239,28 @@ namespace quaternionlib
             _z = std::move(other._z);
             _w = std::move(other._w);
         }
+
+        return *this;
+    }
+
+    template <concepts::FloatingPoint T>
+    template <concepts::FloatingPoint U>
+        requires concepts::QuaternionConvertible<U, T>
+    constexpr Quaternion<T>::Quaternion(const Quaternion<U>& other) noexcept
+        : _x(static_cast<T>(other.X())),
+          _y(static_cast<T>(other.Y())),
+          _z(static_cast<T>(other.Z())),
+          _w(static_cast<T>(other.W())) {}
+
+    template <concepts::FloatingPoint T>
+    template <concepts::FloatingPoint U>
+        requires concepts::QuaternionConvertible<U, T>
+    constexpr auto Quaternion<T>::operator=(const Quaternion<U>& other) noexcept -> Quaternion<T>&
+    {
+        _x = static_cast<T>(other.X());
+        _y = static_cast<T>(other.Y());
+        _z = static_cast<T>(other.Z());
+        _w = static_cast<T>(other.W());
 
         return *this;
     }
@@ -270,16 +283,16 @@ namespace quaternionlib
         requires concepts::QuaternionConvertible<U, T>
     constexpr Quaternion<T>::Quaternion(Quaternion<U>&& other) noexcept
         : _x{static_cast<T>(std::move(other.X()))},
-        _y{static_cast<T>(std::move(other.Y()))},
-        _z{static_cast<T>(std::move(other.Z()))},
-        _w{static_cast<T>(std::move(other.W()))} {}
+          _y{static_cast<T>(std::move(other.Y()))},
+          _z{static_cast<T>(std::move(other.Z()))},
+          _w{static_cast<T>(std::move(other.W()))} {}
 
     template<concepts::FloatingPoint T>
     constexpr Quaternion<T>::Quaternion(const AngleAxis<T>& aa) noexcept
-    : _x{std::sin(aa.angle / 2) * aa.axis_x},
-      _y{std::sin(aa.angle / 2) * aa.axis_y},
-      _z{std::sin(aa.angle / 2) * aa.axis_z},
-      _w{std::cos(aa.angle / 2)} {}
+        : _x{std::sin(aa.angle / 2) * aa.axis_x},
+          _y{std::sin(aa.angle / 2) * aa.axis_y},
+          _z{std::sin(aa.angle / 2) * aa.axis_z},
+          _w{std::cos(aa.angle / 2)} {}
 
     template <concepts::FloatingPoint T>
     constexpr Quaternion<T>::Quaternion(const Matrix3x3<T>& m) noexcept
@@ -321,46 +334,85 @@ namespace quaternionlib
     }
 
     template <concepts::FloatingPoint T>
-    constexpr T Quaternion<T>::X() const noexcept 
+    constexpr auto Quaternion<T>::X() const noexcept -> T
     {
         return _x;
     }
 
     template <concepts::FloatingPoint T>
-    constexpr T Quaternion<T>::Y() const noexcept
+    constexpr auto Quaternion<T>::Y() const noexcept -> T
     {
         return _y;
     }
 
     template <concepts::FloatingPoint T>
-    constexpr T Quaternion<T>::Z() const noexcept
+    constexpr auto Quaternion<T>::Z() const noexcept -> T
     {
         return _z;
     }
 
     template <concepts::FloatingPoint T>
-    constexpr T Quaternion<T>::W() const noexcept
+    constexpr auto Quaternion<T>::W() const noexcept -> T
     {
         return _w;
     }
 
     template <concepts::FloatingPoint T>
-    constexpr T Quaternion<T>::Norm() const noexcept
+    constexpr auto Quaternion<T>::Norm() const noexcept -> T
     {
         return std::sqrt(_x * _x + _y * _y + _z * _z + _w * _w);
     }
 
     template <concepts::FloatingPoint T>
-    constexpr Quaternion<T> Quaternion<T>::Normalize() const noexcept
+    constexpr auto Quaternion<T>::SquaredNorm() const noexcept -> T
     {
-        T n = Norm();
+        return _x * _x + _y * _y + _z * _z + _w * _w;
+    }
+
+    template <concepts::FloatingPoint T>
+    constexpr auto Quaternion<T>::Normalize() const noexcept -> Quaternion<T>
+    {
+        const T n = Norm();
         return Quaternion{_x / n, _y / n, _z / n, _w / n};
     }
 
     template <concepts::FloatingPoint T>
-    constexpr Quaternion<T> Quaternion<T>::Conjugate() const noexcept
+    constexpr auto Quaternion<T>::Conjugate() const noexcept -> Quaternion<T>
     {
         return Quaternion{-_x, -_y, -_z, _w};
+    }
+
+    template <concepts::FloatingPoint T>
+    constexpr auto operator<<(std::ostream& os, const Quaternion<T>& q) -> std::ostream&
+    {
+        return os << "Quaternion(" << q._x << ", " << q._y << ", "
+                  << q._z << ", " << q._w << ")";
+    }
+
+    template <concepts::FloatingPoint T>
+    constexpr inline auto operator==(const Quaternion<T>& lhs, const Quaternion<T>& rhs) noexcept -> bool
+    {
+        return lhs.W() == rhs.W() &&
+               lhs.X() == rhs.X() &&
+               lhs.Y() == rhs.Y() &&
+               lhs.Z() == rhs.Z();
+    }
+
+    template <concepts::FloatingPoint T>
+    constexpr inline auto operator!=(const Quaternion<T>& lhs, const Quaternion<T>& rhs) noexcept -> bool
+    {
+        return !(lhs == rhs);
+    }
+
+    template <concepts::FloatingPoint T> // TODO probably to trash
+    constexpr auto IsApproxEqual(const Quaternion<T>& a,
+                                const Quaternion<T>& b,
+                                T epsilon = T(1e-6)) noexcept -> bool
+    {
+        return std::abs(a.W() - b.W()) <= epsilon &&
+               std::abs(a.X() - b.X()) <= epsilon &&
+               std::abs(a.Y() - b.Y()) <= epsilon &&
+               std::abs(a.Z() - b.Z()) <= epsilon;
     }
 } // namespace quaternionlib
 
