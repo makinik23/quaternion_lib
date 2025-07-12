@@ -11,7 +11,8 @@ int main()
 
     Quaternion<double> q;
     q = {1, 2, 3, 4};
-    // Quaternion<float> q2 = {1, 2, 3, 4};
+    Quaternion<float> q2 = {1, 2, 4};
+    // Quaternion<float> q1 = static_cast<Quaternion<double>>(q);
     // q = std::move(q2);
 
     std::cout << "Quaternion: " << q << '\n';

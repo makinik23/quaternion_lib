@@ -208,8 +208,104 @@ TEST(QuaternionOperators, InitializerListAssignment)
     EXPECT_FLOAT_EQ(q.W(), 4.0f);
 }
 
-TEST(QuaternionMethods, Norm) // Test test
+TEST(QuaternionTest, SquaredNorm)
 {
-    Quaternion<float> qf;
-    EXPECT_FLOAT_EQ(qf.X(), 0.0f);
+    Quaternion<double> q(1.0, 2.0, 3.0, 4.0);
+    EXPECT_DOUBLE_EQ(q.SquaredNorm(), 1.0*1.0 + 2.0*2.0 + 3.0*3.0 + 4.0*4.0);
+}
+
+TEST(QuaternionTest, Normalize)
+{
+    Quaternion<double> q(1.0, 2.0, 3.0, 4.0);
+    auto normalized = q.Normalize();
+    EXPECT_NEAR(normalized.SquaredNorm(), 1.0, 1e-12);
+}
+
+TEST(QuaternionTest, IsNormalized)
+{
+    Quaternion<double> q(1.0, 2.0, 3.0, 4.0);
+    EXPECT_FALSE(q.IsNormalized());
+    auto norm_q = q.Normalize();
+    EXPECT_TRUE(norm_q.IsNormalized());
+}
+
+TEST(QuaternionTest, Conjugate)
+{
+    Quaternion<double> q(1.0, -2.0, 3.0, -4.0);
+    auto conj = q.Conjugate();
+    EXPECT_EQ(conj.X(), -q.X());
+    EXPECT_EQ(conj.Y(), -q.Y());
+    EXPECT_EQ(conj.Z(), -q.Z());
+    EXPECT_EQ(conj.W(), q.W());
+}
+
+TEST(QuaternionTest, EqualityOperators)
+{
+    Quaternion<double> a(1.0, 2.0, 3.0, 4.0);
+    Quaternion<double> b(1.0, 2.0, 3.0, 4.0);
+    Quaternion<double> c(1.0, 2.0, 3.0, 5.0);
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a != b);
+    EXPECT_TRUE(a != c);
+}
+
+TEST(QuaternionTest, IsApproxEqual)
+{
+    Quaternion<double> a(1.0, 2.0, 3.0, 4.0);
+    Quaternion<double> b(1.0 + 1e-7, 2.0 - 1e-7, 3.0 + 1e-7, 4.0 - 1e-7);
+    EXPECT_TRUE(IsApproxEqual(a, b));
+}
+
+TEST(QuaternionTest, AdditionOperator)
+{
+    Quaternion<float> a(1.f, 2.f, 3.f, 4.f);
+    Quaternion<double> b(0.5, -1.0, 0.0, 1.0);
+    auto result = a + b;
+    using ResultT = decltype(result)::value_type;
+    EXPECT_NEAR(result.X(), ResultT(1.5), 1e-6);
+    EXPECT_NEAR(result.Y(), ResultT(1.0), 1e-6);
+    EXPECT_NEAR(result.Z(), ResultT(3.0), 1e-6);
+    EXPECT_NEAR(result.W(), ResultT(5.0), 1e-6);
+}
+
+TEST(QuaternionTest, SubtractionOperator)
+{
+    Quaternion<float> a(1.f, 2.f, 3.f, 4.f);
+    Quaternion<double> b(0.5, 1.0, 1.0, 0.0);
+    auto result = a - b;
+    using ResultT = decltype(result)::value_type;
+    EXPECT_NEAR(result.X(), ResultT(0.5), 1e-6);
+    EXPECT_NEAR(result.Y(), ResultT(1.0), 1e-6);
+    EXPECT_NEAR(result.Z(), ResultT(2.0), 1e-6);
+    EXPECT_NEAR(result.W(), ResultT(4.0), 1e-6);
+}
+
+TEST(QuaternionTest, CompoundAddition)
+{
+    Quaternion<double> a(1.0, 2.0, 3.0, 4.0);
+    Quaternion<double> b(0.5, 0.5, 0.5, 0.5);
+    a += b;
+    EXPECT_DOUBLE_EQ(a.X(), 1.5);
+    EXPECT_DOUBLE_EQ(a.Y(), 2.5);
+    EXPECT_DOUBLE_EQ(a.Z(), 3.5);
+    EXPECT_DOUBLE_EQ(a.W(), 4.5);
+}
+
+TEST(QuaternionTest, CompoundSubtraction)
+{
+    Quaternion<double> a(1.0, 2.0, 3.0, 4.0);
+    Quaternion<double> b(0.5, 1.0, 1.5, 2.0);
+    a -= b;
+    EXPECT_DOUBLE_EQ(a.X(), 0.5);
+    EXPECT_DOUBLE_EQ(a.Y(), 1.0);
+    EXPECT_DOUBLE_EQ(a.Z(), 1.5);
+    EXPECT_DOUBLE_EQ(a.W(), 2.0);
+}
+
+TEST(QuaternionTest, StreamOperator)
+{
+    Quaternion<double> q(1.0, 2.0, 3.0, 4.0);
+    std::ostringstream oss;
+    oss << q;
+    EXPECT_TRUE(oss.str().find("Quaternion(1") != std::string::npos);
 }
