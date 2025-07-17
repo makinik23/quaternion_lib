@@ -23,7 +23,7 @@ add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(${PROJECT_NAME} INTERFACE include/)
 target_compile_options(${PROJECT_NAME} INTERFACE -Werror -Wall -Wextra -Wconversion -Wpedantic)
 
-add_executable(tests tests/test.cpp)
+add_executable(tests test/test.cpp)
 target_link_libraries(tests PRIVATE ${PROJECT_NAME} Catch2::Catch2WithMain)
 
 include(CTest)

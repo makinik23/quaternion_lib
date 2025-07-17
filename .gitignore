@@ -3,6 +3,8 @@ CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
+todo.txt
+test/main.cpp
 
 *.exe
 *.out

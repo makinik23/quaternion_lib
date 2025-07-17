@@ -77,13 +77,13 @@ namespace quaternionlib
     };
 
     template <concepts::FloatingPoint T>
-    struct Matrix3x3 // TODO change to std::array if it is more efficient, or Maciek's lib
+    struct RotationMatrix // TODO change to std::array if it is more efficient, or Maciek's lib
     {                // TODO optionaly convert quaternion to matrix
         T m[3][3]{};
 
-        constexpr Matrix3x3() noexcept = default;
+        constexpr RotationMatrix() noexcept = default;
 
-        constexpr Matrix3x3(
+        constexpr RotationMatrix(
             T m00, T m01, T m02,
             T m10, T m11, T m12,
             T m20, T m21, T m22) noexcept
@@ -106,7 +106,7 @@ namespace quaternionlib
 
         constexpr ~Quaternion() noexcept = default;
 
-        explicit constexpr Quaternion(const T& x, const T& y, const T& z, const T& w) noexcept; // const& ?
+        explicit constexpr Quaternion(const T& x, const T& y, const T& z, const T& w) noexcept;
 
         constexpr Quaternion(const T& x, const T& y, const T& z) noexcept; // add explicit or not???
 
@@ -138,7 +138,7 @@ namespace quaternionlib
 
         explicit constexpr Quaternion(const AngleAxis<T>& angleAxis) noexcept; // TODO operator overload
 
-        explicit constexpr Quaternion(const Matrix3x3<T>& matrix) noexcept; // TODO operator overload
+        explicit constexpr Quaternion(const RotationMatrix<T>& matrix) noexcept; // TODO operator overload
 
         [[nodiscard]] constexpr auto X() const noexcept -> T;
         [[nodiscard]] constexpr auto Y() const noexcept -> T;
@@ -170,9 +170,6 @@ namespace quaternionlib
 
     private:
         T _x{}, _y{}, _z{}, _w{1}; // cos moze byc nie tak
-    
-    protected:
-        constexpr T& XRef() noexcept { return _x; }
     };
 
     template <concepts::FloatingPoint T>
@@ -319,7 +316,7 @@ namespace quaternionlib
           _w{std::cos(aa.angle / 2)} {}
 
     template <concepts::FloatingPoint T>
-    constexpr Quaternion<T>::Quaternion(const Matrix3x3<T>& m) noexcept
+    constexpr Quaternion<T>::Quaternion(const RotationMatrix<T>& m) noexcept
     {
         const T trace = m[0][0] + m[1][1] + m[2][2];
 
@@ -470,7 +467,7 @@ namespace quaternionlib
     }
 
     template <concepts::FloatingPoint T, concepts::FloatingPoint U>
-        requires concepts::is_convertible_v<T, U>
+        requires concepts::QuaternionConvertible<T, U>
     [[nodiscard]] constexpr inline auto operator==(const Quaternion<T>& lhs, const Quaternion<U>& rhs) noexcept -> bool
     {
         return lhs.W() == rhs.W() &&
@@ -480,7 +477,24 @@ namespace quaternionlib
     }
 
     template <concepts::FloatingPoint T, concepts::FloatingPoint U>
-        requires concepts::is_convertible_v<T, U>
+        requires concepts::QuaternionConvertible<T, U>
+    [[nodiscard]] constexpr inline auto operator==(const Quaternion<T>& q, const std::initializer_list<U>& list) noexcept -> bool
+    {
+        if (list.size() != 4)
+        {
+            return false;
+        }
+
+        auto it = list.begin();
+
+        return q.X() == *it++ &&
+               q.Y() == *it++ &&
+               q.Z() == *it++ &&
+               q.W() == *it;
+    }
+
+    template <concepts::FloatingPoint T, concepts::FloatingPoint U>
+        requires concepts::QuaternionConvertible<T, U>
     [[nodiscard]] constexpr inline auto operator!=(const Quaternion<T>& lhs, const Quaternion<U>& rhs) noexcept -> bool
     {
         return !(lhs == rhs);
