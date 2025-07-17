@@ -305,3 +305,31 @@ TEST_CASE("Substraction")
 
     }
 }
+
+TEST_CASE("Scalar multiplication assignment")
+{
+    SECTION("Multilication assignment different types")
+    {
+        quaternionlib::Quaternion<double> q{6, 7, 3, 4};
+        const double scalar {2};
+        const quaternionlib::Quaternion<double> result{12, 14, 6, 8};
+
+        q *= scalar;
+
+        REQUIRE(q == result);
+    }
+}
+
+TEST_CASE("Scalar division assignment")
+{
+    SECTION("Scalar division assignment same types")
+    {
+        quaternionlib::Quaternion<double> q{6, 8, 10, 4};
+        const double scalar {2};
+        const quaternionlib::Quaternion<double> result{3, 4, 5, 2};
+
+        q /= scalar;
+
+        REQUIRE(q == result);
+    }
+}

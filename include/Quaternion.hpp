@@ -11,32 +11,8 @@ namespace quaternionlib
 {
     namespace concepts
     {
-        template <typename T, typename S> // TODO: check if one of them is a scalar, add concept scalar
-        static inline constexpr auto is_scalar_multiplicable_v =
-            requires(T t, S s)
-            {
-                { t * s } -> std::same_as<T>;
-                { s * t } -> std::same_as<T>;
-            };
-
         template <typename T>
         static inline constexpr auto is_floating_point_v = std::is_floating_point<T>::value;
-
-        template <typename T, typename S>
-        static inline constexpr auto is_multipliable_v =
-            requires(T t, S s)
-            {
-                { t * s } -> std::same_as<T>;
-            };
-        
-        template <typename T> // TODO: necessary??? or to be repaired
-        static inline constexpr auto is_quaternion_compatible_v =
-            requires(T t, T s)
-            {
-                { t + s } -> std::same_as<T>;
-                { t - s } -> std::same_as<T>;
-                { t == s } -> std::same_as<bool>;
-            };
 
         template <typename From_, typename To_>
         static inline constexpr auto is_convertible_v = std::is_convertible_v<From_, To_>;
@@ -50,18 +26,17 @@ namespace quaternionlib
             { v / v} -> std::same_as<T>;
             { -v } -> std::same_as<T>;
         };
-        
-        template <typename T, typename S>
-        concept ScalarMultiplicable = is_scalar_multiplicable_v<T, S>;
+
+        template <class Ta_, class Tb_>
+        concept Scalar = std::is_scalar_v<Tb_>
+                        and requires(Ta_ a_type, Tb_ b_type)
+        {
+            { a_type * b_type};
+            { a_type / b_type};
+        };
 
         template <typename From_, typename To_>
         concept QuaternionConvertible = is_convertible_v<From_, To_>;
-
-        template <typename T, typename S>
-        concept Multipliable = is_multipliable_v<T, S>;
-
-        template <typename T>
-        concept QuaternionCompatible = is_quaternion_compatible_v<T>;
     } // namespace concepts
 
     template <concepts::FloatingPoint T>
@@ -72,7 +47,7 @@ namespace quaternionlib
 
         constexpr AngleAxis() noexcept = default;
 
-        explicit constexpr AngleAxis(T angle, T x, T y, T z) noexcept
+         explicit constexpr AngleAxis(T angle, T x, T y, T z) noexcept
             : angle(angle), axis_x(x), axis_y(y), axis_z(z) {}
     };
 
@@ -167,6 +142,18 @@ namespace quaternionlib
         template <concepts::FloatingPoint U>
             requires concepts::QuaternionConvertible<U, T>   
         constexpr auto operator-=(const Quaternion<U>& other) noexcept -> Quaternion<T>&;
+
+        template <concepts::FloatingPoint U>
+            requires concepts::QuaternionConvertible<U, T>   
+        constexpr auto operator*=(const Quaternion<U>& other) noexcept -> Quaternion<T>&;
+
+        template <concepts::Scalar<T> U>
+            requires concepts::QuaternionConvertible<U, T>   
+        constexpr auto operator*=(const U&) noexcept -> Quaternion<T>&;
+
+        template <concepts::Scalar<T> U>
+            requires concepts::QuaternionConvertible<U, T>   
+        constexpr auto operator/=(const U&) noexcept -> Quaternion<T>&;
 
     private:
         T _x{}, _y{}, _z{}, _w{1}; // cos moze byc nie tak
@@ -527,6 +514,36 @@ namespace quaternionlib
         tmp -= rhs;
 
         return tmp;
+    }
+
+    template <concepts::FloatingPoint T>
+    template <concepts::FloatingPoint U>
+        requires concepts::QuaternionConvertible<U, T>   
+    constexpr auto Quaternion<T>::operator*=(const Quaternion<U>& other) noexcept -> Quaternion<T>&
+    {
+
+    }
+
+    template <concepts::FloatingPoint T>
+    template <concepts::Scalar<T> U>
+        requires concepts::QuaternionConvertible<U, T>   
+    constexpr auto Quaternion<T>::operator*=(const U& scalar) noexcept -> Quaternion<T>&
+    {
+        _w *= static_cast<T>(scalar);
+        _x *= static_cast<T>(scalar);
+        _y *= static_cast<T>(scalar);
+        _z *= static_cast<T>(scalar);
+
+        return *this;
+    }
+
+    template <concepts::FloatingPoint T>
+    template <concepts::Scalar<T> U>
+        requires concepts::QuaternionConvertible<U, T>   
+    constexpr auto Quaternion<T>::operator/=(const U& scalar) noexcept -> Quaternion<T>&
+    {
+        // TODO check if scalar == 0
+        return *this *= (static_cast<T>(1) / scalar);
     }
 } // namespace quaternionlib
 
