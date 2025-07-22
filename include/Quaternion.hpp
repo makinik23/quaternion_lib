@@ -12,13 +12,13 @@ namespace quaternionlib
     namespace concepts
     {
         template <typename T>
-        static inline constexpr auto is_floating_point_v = std::is_floating_point<T>::value;
+        static inline constexpr auto is_arithmetic_v = std::is_arithmetic<T>::value;
 
         template <typename From_, typename To_>
         static inline constexpr auto is_convertible_v = std::is_convertible_v<From_, To_>;
 
         template <typename T>
-        concept FloatingPoint = is_floating_point_v<T> and requires(T v)
+        concept Arithmetic = is_arithmetic_v<T> and requires(T v)
         {
             { v + v } -> std::same_as<T>;
             { v - v } -> std::same_as<T>;
@@ -31,15 +31,15 @@ namespace quaternionlib
         concept Scalar = std::is_scalar_v<Tb_>
                         and requires(Ta_ a_type, Tb_ b_type)
         {
-            { a_type * b_type};
-            { a_type / b_type};
+            { a_type * b_type };
+            { a_type / b_type };
         };
 
         template <typename From_, typename To_>
         concept QuaternionConvertible = is_convertible_v<From_, To_>;
     } // namespace concepts
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     struct AngleAxis // TODO optionaly convert quaternion to angle-axis
     {
         T angle{};
@@ -51,7 +51,7 @@ namespace quaternionlib
             : angle(angle), axis_x(x), axis_y(y), axis_z(z) {}
     };
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     struct RotationMatrix // TODO change to std::array if it is more efficient, or Maciek's lib
     {                // TODO optionaly convert quaternion to matrix
         T m[3][3]{};
@@ -71,7 +71,7 @@ namespace quaternionlib
         constexpr const T* operator[](std::size_t row) const noexcept { return m[row]; }
     };
     
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     class Quaternion final
     {
     public:
@@ -95,19 +95,19 @@ namespace quaternionlib
         constexpr Quaternion(Quaternion<T>&& other) noexcept;
         constexpr auto operator=(Quaternion<T>&& other) noexcept -> Quaternion<T>&;
 
-        template <concepts::FloatingPoint U>
+        template <concepts::Arithmetic U>
             requires concepts::QuaternionConvertible<U, T>
         explicit constexpr Quaternion(const Quaternion<U>& other) noexcept;
 
-        template <concepts::FloatingPoint U>
+        template <concepts::Arithmetic U>
             requires concepts::QuaternionConvertible<U, T>
         constexpr auto operator=(const Quaternion<U>& other) noexcept -> Quaternion<T>&;
 
-        template <concepts::FloatingPoint U>
+        template <concepts::Arithmetic U>
             requires concepts::QuaternionConvertible<U, T>
         explicit constexpr Quaternion(Quaternion<U>&& other) noexcept;
 
-        template <concepts::FloatingPoint U>
+        template <concepts::Arithmetic U>
             requires concepts::QuaternionConvertible<U, T>
         constexpr auto operator=(Quaternion<U>&& other) noexcept -> Quaternion<T>&;
 
@@ -128,22 +128,22 @@ namespace quaternionlib
         [[nodiscard]] constexpr auto IsNormalized(T epsilon = T(1e-6)) const noexcept -> bool;
         [[nodiscard]] constexpr auto Conjugate() const noexcept -> Quaternion<T>;
 
-        template <concepts::FloatingPoint U>
+        template <concepts::Arithmetic U>
         friend constexpr auto operator<<(std::ostream&, const Quaternion<U>&) -> std::ostream&;
 
-        template <concepts::FloatingPoint U>
+        template <concepts::Arithmetic U>
             requires concepts::QuaternionConvertible<T, U>
         explicit constexpr operator Quaternion<U>() const noexcept;
 
-        template <concepts::FloatingPoint U>
+        template <concepts::Arithmetic U>
             requires concepts::QuaternionConvertible<U, T>
         constexpr auto operator+=(const Quaternion<U>& other) noexcept -> Quaternion<T>&;
 
-        template <concepts::FloatingPoint U>
+        template <concepts::Arithmetic U>
             requires concepts::QuaternionConvertible<U, T>   
         constexpr auto operator-=(const Quaternion<U>& other) noexcept -> Quaternion<T>&;
 
-        template <concepts::FloatingPoint U>
+        template <concepts::Arithmetic U>
             requires concepts::QuaternionConvertible<U, T>   
         constexpr auto operator*=(const Quaternion<U>& other) noexcept -> Quaternion<T>&;
 
@@ -156,18 +156,18 @@ namespace quaternionlib
         constexpr auto operator/=(const U&) noexcept -> Quaternion<T>&;
 
     private:
-        T _x{}, _y{}, _z{}, _w{1}; // cos moze byc nie tak
+        T _x{}, _y{}, _z{}, _w{};
     };
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr Quaternion<T>::Quaternion(const T& x, const T& y, const T& z, const T& w) noexcept
         : _x(x), _y(y), _z(z), _w(w) {}
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr Quaternion<T>::Quaternion(const T& x, const T& y, const T& z) noexcept
         : _x(x), _y(y), _z(z), _w(static_cast<T>(1)) {}
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr Quaternion<T>::Quaternion(std::initializer_list<T> values)
     {
         if (values.size() != 3 && values.size() != 4) [[unlikely]]
@@ -185,7 +185,7 @@ namespace quaternionlib
         }
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::operator=(std::initializer_list<T> values) -> Quaternion<T>&
     {
         if (values.size() != 3 && values.size() != 4) [[unlikely]]
@@ -205,14 +205,14 @@ namespace quaternionlib
         }
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr Quaternion<T>::Quaternion(const Quaternion<T>& other) noexcept
         : _x(other._x),
           _y(other._y),
           _z(other._z),
           _w(other._w) {}
     
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::operator=(const Quaternion<T>& other) noexcept -> Quaternion<T>&
     {
         if (this != &other)
@@ -226,14 +226,14 @@ namespace quaternionlib
         return *this;
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr Quaternion<T>::Quaternion(Quaternion<T>&& other) noexcept
         : _x{std::exchange(other._x, T{})},
           _y{std::exchange(other._y, T{})},
           _z{std::exchange(other._z, T{})},
           _w{std::exchange(other._w, T{})} {}
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::operator=(Quaternion<T>&& other) noexcept -> Quaternion<T>& // TODO here changes as well
     {
         if (this != &other)
@@ -247,8 +247,8 @@ namespace quaternionlib
         return *this;
     }
 
-    template <concepts::FloatingPoint T>
-    template <concepts::FloatingPoint U>
+    template <concepts::Arithmetic T>
+    template <concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<U, T>
     constexpr Quaternion<T>::Quaternion(const Quaternion<U>& other) noexcept
         : _x(static_cast<T>(other.X())),
@@ -256,8 +256,8 @@ namespace quaternionlib
           _z(static_cast<T>(other.Z())),
           _w(static_cast<T>(other.W())) {}
 
-    template <concepts::FloatingPoint T>
-    template <concepts::FloatingPoint U>
+    template <concepts::Arithmetic T>
+    template <concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<U, T>
     constexpr auto Quaternion<T>::operator=(const Quaternion<U>& other) noexcept -> Quaternion<T>&
     {
@@ -269,8 +269,8 @@ namespace quaternionlib
         return *this;
     }
 
-    template <concepts::FloatingPoint T>
-    template <concepts::FloatingPoint U>
+    template <concepts::Arithmetic T>
+    template <concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<U, T>
     constexpr Quaternion<T>::Quaternion(Quaternion<U>&& other) noexcept
         : _x{static_cast<T>(std::move(other.X()))},
@@ -281,8 +281,8 @@ namespace quaternionlib
         other.Zero();
     }
 
-    template <concepts::FloatingPoint T>
-    template <concepts::FloatingPoint U>
+    template <concepts::Arithmetic T>
+    template <concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<U, T>
     constexpr auto Quaternion<T>::operator=(Quaternion<U>&& other) noexcept -> Quaternion<T>&
     {
@@ -295,14 +295,14 @@ namespace quaternionlib
         return *this;
     }
 
-    template<concepts::FloatingPoint T>
+    template<concepts::Arithmetic T>
     constexpr Quaternion<T>::Quaternion(const AngleAxis<T>& aa) noexcept
         : _x{std::sin(aa.angle / 2) * aa.axis_x},
           _y{std::sin(aa.angle / 2) * aa.axis_y},
           _z{std::sin(aa.angle / 2) * aa.axis_z},
           _w{std::cos(aa.angle / 2)} {}
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr Quaternion<T>::Quaternion(const RotationMatrix<T>& m) noexcept
     {
         const T trace = m[0][0] + m[1][1] + m[2][2];
@@ -341,31 +341,31 @@ namespace quaternionlib
         }
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::X() const noexcept -> T
     {
         return _x;
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::Y() const noexcept -> T
     {
         return _y;
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::Z() const noexcept -> T
     {
         return _z;
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::W() const noexcept -> T
     {
         return _w;
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::Zero() noexcept -> void
     {
         _x = T{};
@@ -374,40 +374,40 @@ namespace quaternionlib
         _w = T{};
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::Norm() const noexcept -> T
     {
         return std::sqrt(_x * _x + _y * _y + _z * _z + _w * _w);
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::SquaredNorm() const noexcept -> T
     {
         return _x * _x + _y * _y + _z * _z + _w * _w;
     }
 
-    template <concepts::FloatingPoint T>
-    constexpr auto Quaternion<T>::Normalize() const noexcept -> Quaternion<T>
+    template <concepts::Arithmetic T>
+    constexpr auto Quaternion<T>::Normalize() const noexcept -> Quaternion<T>  // TODO static_cast<double>
     {
         const T n = Norm();
         return Quaternion{_x / n, _y / n, _z / n, _w / n};
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::IsNormalized(T epsilon) const noexcept -> bool
     {
         // change to epsilon = std::numeric_limits<T>
-        return std::abs(Quaternion<T>::SquaredNorm() - T(1)) <= epsilon;
+        return std::abs(Quaternion<T>::SquaredNorm() - static_cast<T>(1)) <= epsilon;
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto Quaternion<T>::Conjugate() const noexcept -> Quaternion<T>
     {
         return Quaternion{-_x, -_y, -_z, _w};
     }
 
-    template <concepts::FloatingPoint T>
-    template <concepts::FloatingPoint U>
+    template <concepts::Arithmetic T>
+    template <concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<T, U>
     constexpr Quaternion<T>::operator Quaternion<U>() const noexcept
     {
@@ -420,8 +420,8 @@ namespace quaternionlib
         };
     }
 
-    template <concepts::FloatingPoint T>
-    template <concepts::FloatingPoint U>
+    template <concepts::Arithmetic T>
+    template <concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<U, T>
     constexpr auto Quaternion<T>::operator+=(const Quaternion<U>& other) noexcept -> Quaternion<T>&
     {
@@ -433,8 +433,8 @@ namespace quaternionlib
         return *this;
     }
 
-    template <concepts::FloatingPoint T>
-    template <concepts::FloatingPoint U>
+    template <concepts::Arithmetic T>
+    template <concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<U, T>
     constexpr auto Quaternion<T>::operator-=(const Quaternion<U>& other) noexcept -> Quaternion<T>&
     {
@@ -446,14 +446,14 @@ namespace quaternionlib
         return *this;
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     constexpr auto operator<<(std::ostream& os, const Quaternion<T>& q) -> std::ostream&
     {
         return os << "Quaternion(" << q._x << ", " << q._y << ", "
                   << q._z << ", " << q._w << ")";
     }
 
-    template <concepts::FloatingPoint T, concepts::FloatingPoint U>
+    template <concepts::Arithmetic T, concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<T, U>
     [[nodiscard]] constexpr inline auto operator==(const Quaternion<T>& lhs, const Quaternion<U>& rhs) noexcept -> bool
     {
@@ -463,9 +463,9 @@ namespace quaternionlib
                lhs.Z() == rhs.Z();
     }
 
-    template <concepts::FloatingPoint T, concepts::FloatingPoint U>
+    template <concepts::Arithmetic T, concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<T, U>
-    [[nodiscard]] constexpr inline auto operator==(const Quaternion<T>& q, const std::initializer_list<U>& list) noexcept -> bool
+    [[nodiscard]] constexpr inline auto operator==(const Quaternion<T>& q, const std::initializer_list<U>& list) noexcept -> bool  // TODO change to 4 or 3?
     {
         if (list.size() != 4)
         {
@@ -480,14 +480,14 @@ namespace quaternionlib
                q.W() == *it;
     }
 
-    template <concepts::FloatingPoint T, concepts::FloatingPoint U>
+    template <concepts::Arithmetic T, concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<T, U>
     [[nodiscard]] constexpr inline auto operator!=(const Quaternion<T>& lhs, const Quaternion<U>& rhs) noexcept -> bool
     {
         return !(lhs == rhs);
     }
 
-    template <concepts::FloatingPoint T> // TODO probably to trash or change accordingly to == operator
+    template <concepts::Arithmetic T>
     [[nodiscard]] constexpr auto IsApproxEqual(const Quaternion<T>& a,
                                 const Quaternion<T>& b,
                                 T epsilon = T(1e-6)) noexcept -> bool
@@ -498,7 +498,7 @@ namespace quaternionlib
                std::abs(a.Z() - b.Z()) <= epsilon;
     }
 
-    template <concepts::FloatingPoint T, concepts::FloatingPoint U>
+    template <concepts::Arithmetic T, concepts::Arithmetic U>
     constexpr auto operator+(const Quaternion<T>& lhs, const Quaternion<U>& rhs) -> Quaternion<std::common_type_t<T, U>>
     {
         auto tmp = static_cast<Quaternion<std::common_type_t<T, U>>>(lhs);
@@ -507,7 +507,7 @@ namespace quaternionlib
         return tmp;
     }
 
-    template <concepts::FloatingPoint T, concepts::FloatingPoint U>
+    template <concepts::Arithmetic T, concepts::Arithmetic U>
     constexpr auto operator-(const Quaternion<T>& lhs, const Quaternion<U>& rhs) -> Quaternion<std::common_type_t<T, U>>
     {
         auto tmp = static_cast<Quaternion<std::common_type_t<T, U>>>(lhs);
@@ -516,15 +516,26 @@ namespace quaternionlib
         return tmp;
     }
 
-    template <concepts::FloatingPoint T>
-    template <concepts::FloatingPoint U>
+    template <concepts::Arithmetic T>
+    template <concepts::Arithmetic U>
         requires concepts::QuaternionConvertible<U, T>   
     constexpr auto Quaternion<T>::operator*=(const Quaternion<U>& other) noexcept -> Quaternion<T>&
     {
+        const T x1 = _x, y1 = _y, z1 = _z, w1 = _w;
+        const T x2 = static_cast<T>(other.X());
+        const T y2 = static_cast<T>(other.Y());
+        const T z2 = static_cast<T>(other.Z());
+        const T w2 = static_cast<T>(other.W());
 
+        _x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2;
+        _y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2;
+        _z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2;
+        _w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2;
+
+        return *this;
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     template <concepts::Scalar<T> U>
         requires concepts::QuaternionConvertible<U, T>   
     constexpr auto Quaternion<T>::operator*=(const U& scalar) noexcept -> Quaternion<T>&
@@ -537,13 +548,49 @@ namespace quaternionlib
         return *this;
     }
 
-    template <concepts::FloatingPoint T>
+    template <concepts::Arithmetic T>
     template <concepts::Scalar<T> U>
         requires concepts::QuaternionConvertible<U, T>   
-    constexpr auto Quaternion<T>::operator/=(const U& scalar) noexcept -> Quaternion<T>&
+    constexpr auto Quaternion<T>::operator/=(const U& scalar) noexcept -> Quaternion<T>&  // TODO u dumb if 0
     {
-        // TODO check if scalar == 0
-        return *this *= (static_cast<T>(1) / scalar);
+        _w /= static_cast<T>(scalar);
+        _x /= static_cast<T>(scalar);
+        _y /= static_cast<T>(scalar);
+        _z /= static_cast<T>(scalar);
+
+        return *this;
+    }
+
+    template <concepts::Arithmetic T, concepts::Scalar<T> U>
+        requires concepts::QuaternionConvertible<U, T>
+    constexpr auto operator*(const Quaternion<T>& lhs, const U& rhs) -> Quaternion<std::common_type_t<T, U>>
+    {
+        auto tmp = static_cast<Quaternion<std::common_type_t<T, U>>>(lhs);
+        tmp *= rhs;
+
+        return tmp;
+    }
+
+    template <concepts::Arithmetic T, concepts::Scalar<T> U>
+        requires concepts::QuaternionConvertible<U, T>
+    constexpr auto operator*(const U& lhs, const Quaternion<T>& rhs) -> Quaternion<std::common_type_t<T, U>>  // WTF???
+    {
+        // const_cast<Quaternion<std::common_type_t<T, U>>&>(rhs) *= lhs;
+
+        auto tmp = static_cast<Quaternion<std::common_type_t<T, U>>>(rhs);
+        tmp *= lhs;
+
+        return tmp;
+    }
+
+    template <concepts::Arithmetic T, concepts::Scalar<T> U>
+        requires concepts::QuaternionConvertible<U, T>
+    constexpr auto operator/(const Quaternion<T>& lhs, const U& rhs) -> Quaternion<std::common_type_t<T, U>>
+    {
+        auto tmp = static_cast<Quaternion<std::common_type_t<T, U>>>(lhs);
+        tmp /= rhs;
+
+        return tmp;
     }
 } // namespace quaternionlib
 
