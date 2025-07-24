@@ -1,13 +1,15 @@
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/catch_approx.hpp>
 #include <Quaternion.hpp>
+#include <catch2/catch_approx.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <iostream>
 
 using Catch::Approx;
+using quaternionlib::EPSILON;
 
 namespace
 {
-    static constexpr auto PI = 3.14159265;
+    constexpr auto PI = 3.14159265;
 }
 
 TEST_CASE("Creating an object - default constructor")
@@ -35,32 +37,28 @@ TEST_CASE("Creating an object - initializer list")
     SECTION("Valid use")
     {
         constexpr auto initializeWithValidList = []()
-        {
-            return quaternionlib::Quaternion<double>{1.0, 2.0, 3.0, 4.0};
-        };
-    
+        { return quaternionlib::Quaternion<double>{1.0, 2.0, 3.0, 4.0}; };
+
         REQUIRE_NOTHROW(initializeWithValidList());
-    
+
         const auto q = initializeWithValidList();
-    
+
         REQUIRE(q.X() == 1.0);
         REQUIRE(q.Y() == 2.0);
         REQUIRE(q.Z() == 3.0);
         REQUIRE(q.W() == 4.0);
     }
-    
+
     SECTION("Invalid use")
     {
         constexpr auto initializeWithInvalidList = []()
-        {
-            return quaternionlib::Quaternion<double>{1.0, 2.0, 3.0, 4.0, 5.0};
-        };
+        { return quaternionlib::Quaternion<double>{1.0, 2.0, 3.0, 4.0, 5.0}; };
 
         REQUIRE_THROWS_AS(initializeWithInvalidList(), std::invalid_argument);
     }
 }
 
-TEST_CASE("Operator= with std::initializer_list") // maybe add to one test "initializer_list"
+TEST_CASE("Assignment operator with std::initializer_list")
 {
     SECTION("Copy initializer list")
     {
@@ -71,7 +69,7 @@ TEST_CASE("Operator= with std::initializer_list") // maybe add to one test "init
         REQUIRE(q.X() == 1.0);
         REQUIRE(q.Y() == 2.0);
         REQUIRE(q.Z() == 3.0);
-        REQUIRE(q.W() == 4.0);    
+        REQUIRE(q.W() == 4.0);
     }
 }
 
@@ -181,16 +179,6 @@ TEST_CASE("Moving quaternion")
     }
 }
 
-TEST_CASE("Creating an object - angle axis") // TODO
-{
-   
-}
-
-TEST_CASE("Creating an object - rotational matrix") // TODO
-{
-
-}
-
 TEST_CASE("Normalizing")
 {
     SECTION("Norm and Squared norm")
@@ -201,41 +189,71 @@ TEST_CASE("Normalizing")
         REQUIRE(q.Norm() == Approx(std::sqrt(1.0 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0)));
     }
 
-    SECTION("normalize and normalized")
+    SECTION("Normalize and Normalized")
     {
-        const quaternionlib::Quaternion<double> q{2.0, 0.0, 0.0, 0.0};
-        const auto norm = q.Norm();
-        const auto normalized = q.Normalize();
+        quaternionlib::Quaternion<double> q{2, 1, 3, 0};
+        quaternionlib::Quaternion<double> result{2. / std::sqrt(14), 1. / std::sqrt(14),
+                                                 3. / std::sqrt(14), 0};
+        const auto qNormalized = q.Normalized();
+        q.Normalize();
 
-        REQUIRE(normalized.X() == Approx(1.0));
-        REQUIRE(normalized.Y() == Approx(0.0));
-        REQUIRE(normalized.Z() == Approx(0.0));
-        REQUIRE(normalized.W() == Approx(0.0));
-        REQUIRE(q.Norm() == norm);
+        REQUIRE(q == qNormalized);
+        REQUIRE(q == result);
     }
 
     SECTION("IsNormalized method")
     {
-        const quaternionlib::Quaternion<double> q1{1.0 / std::sqrt(2), 0.0, 0.0, 1.0 / std::sqrt(2)};
-        const quaternionlib::Quaternion<double> q2{1.0, 2.0, 3.0, 4.0};
+        quaternionlib::Quaternion<double> q1{1.0 / std::sqrt(2), 0.0, 0.0, 1.0 / std::sqrt(2)};
+        constexpr quaternionlib::Quaternion<double> q2{1.0, 2.0, 3.0, 4.0};
 
         REQUIRE(q1.IsNormalized());
         REQUIRE_FALSE(q2.IsNormalized());
     }
 }
 
+TEST_CASE("Conjugation")
+{
+    SECTION("Conjugate and conjugated")
+    {
+        quaternionlib::Quaternion<double> q{1.0, 2.0, 3.0, 4.0};
+        const auto qConjugated = q.Conjugated();
+        const quaternionlib::Quaternion<double> result{-1.0, -2.0, -3.0, 4.0};
+
+        q.Conjugate();
+
+        REQUIRE(q == qConjugated);
+        REQUIRE(q == result);
+    }
+}
+
+TEST_CASE("Inversion")
+{
+    SECTION("Inverse and Inversed")
+    {
+        quaternionlib::Quaternion<double> q{1.0, 2.0, 3.0, 4.0};
+        const auto qInversed = q.Inversed();
+        quaternionlib::Quaternion<double> result{-1. / 30, -2. / 30, -3. / 30, 4. / 30};
+        q.Inverse();
+
+        REQUIRE(q == qInversed);
+        REQUIRE(q == result);
+    }
+}
+
 TEST_CASE("Conversion operator")
 {
     constexpr quaternionlib::Quaternion<int> q{1, 2, 3, 4};
-    constexpr quaternionlib::Quaternion<double> qd{static_cast<quaternionlib::Quaternion<double>>(q)};
+    constexpr quaternionlib::Quaternion<double> qd{
+        static_cast<quaternionlib::Quaternion<double>>(q)};
 
+    REQUIRE(std::is_same_v<typename decltype(qd)::value_type, double>);
     REQUIRE(qd.X() == 1.0);
     REQUIRE(qd.Y() == 2.0);
     REQUIRE(qd.Z() == 3.0);
     REQUIRE(qd.W() == 4.0);
 }
 
-TEST_CASE("Addition assignment") // TODO different types
+TEST_CASE("Addition assignment")
 {
     SECTION("Addition assignment same types")
     {
@@ -332,7 +350,7 @@ TEST_CASE("Scalar multiplication assignment")
     SECTION("Scalar multilication assignment same types")
     {
         quaternionlib::Quaternion<int> q{6, 7, 3, 4};
-        const int scalar {2};
+        const int scalar{2};
         const quaternionlib::Quaternion<int> result{12, 14, 6, 8};
 
         q *= scalar;
@@ -343,7 +361,7 @@ TEST_CASE("Scalar multiplication assignment")
     SECTION("Scalar multiplication assignment different types")
     {
         quaternionlib::Quaternion<int> q{6, 8, 1, 3};
-        const double scalar {2.5};
+        const double scalar{2.5};
         quaternionlib::Quaternion<double> result{12, 16, 2, 6};
 
         q *= scalar;
@@ -352,12 +370,12 @@ TEST_CASE("Scalar multiplication assignment")
     }
 }
 
-TEST_CASE("Scalar division assignment")  // TODO divide by zero
+TEST_CASE("Scalar division assignment")
 {
     SECTION("Scalar division assignment same types")
     {
         quaternionlib::Quaternion<int> q{6, 8, 1, 3};
-        const int scalar {2};
+        const int scalar{2};
         const quaternionlib::Quaternion<int> result{3, 4, 0, 1};
 
         q /= scalar;
@@ -368,18 +386,13 @@ TEST_CASE("Scalar division assignment")  // TODO divide by zero
     SECTION("Scalar division assignment different types")
     {
         quaternionlib::Quaternion<double> q{6, 8, 1, 3};
-        const int scalar {2};
+        const int scalar{2};
         const quaternionlib::Quaternion<double> result{3, 4, 0.5, 1.5};
 
         q /= scalar;
 
         REQUIRE(q == result);
     }
-
-    SECTION("Scalar dividing by zero")
-    {
-
-    } 
 }
 
 TEST_CASE("Scalar multiplication")
@@ -387,7 +400,7 @@ TEST_CASE("Scalar multiplication")
     SECTION("Scalar multiplication same types")
     {
         constexpr quaternionlib::Quaternion<int> q{6, 8, 1, 3};
-        constexpr int scalar {2};
+        constexpr int scalar{2};
         constexpr quaternionlib::Quaternion<int> result{12, 16, 2, 6};
 
         REQUIRE(q * scalar == result);
@@ -397,7 +410,7 @@ TEST_CASE("Scalar multiplication")
     SECTION("Scalar multiplication different types")
     {
         constexpr quaternionlib::Quaternion<int> q{7, 5, 1, 3};
-        constexpr double scalar {1.5};
+        constexpr double scalar{1.5};
         constexpr quaternionlib::Quaternion<double> result{10.5, 7.5, 1.5, 4.5};
 
         REQUIRE(q * scalar == result);
@@ -410,7 +423,7 @@ TEST_CASE("Scalar division")
     SECTION("Scalar division same types")
     {
         constexpr quaternionlib::Quaternion<int> q{6, 8, 4, 2};
-        constexpr int scalar {2};
+        constexpr int scalar{2};
         constexpr quaternionlib::Quaternion<int> result{3, 4, 2, 1};
 
         REQUIRE(q / scalar == result);
@@ -419,9 +432,80 @@ TEST_CASE("Scalar division")
     SECTION("Scalar multiplication different types")
     {
         constexpr quaternionlib::Quaternion<int> q{8, 5, 1, 3};
-        constexpr double scalar {0.8};
+        constexpr double scalar{0.8};
         constexpr quaternionlib::Quaternion<double> result{10, 6.25, 1.25, 3.75};
 
         REQUIRE(q / scalar == result);
+    }
+
+    SECTION("Division by zero")
+    {
+        constexpr auto divideByZero = []()
+        {
+            constexpr quaternionlib::Quaternion<int> q{8, 5, 1, 3};
+            constexpr double scalar{0};
+
+            return q / scalar;
+        };
+
+        REQUIRE_THROWS_AS(divideByZero(), std::domain_error);
+    }
+}
+
+TEST_CASE("Hamilton product")
+{
+    constexpr quaternionlib::Quaternion<int> i{1, 0, 0, 0};
+    constexpr quaternionlib::Quaternion<int> j{0, 1, 0, 0};
+    constexpr quaternionlib::Quaternion<int> k{0, 0, 1, 0};
+    constexpr quaternionlib::Quaternion<int> w{0, 0, 0, 1};
+
+    SECTION("Quaternion identities")
+    {
+        REQUIRE(i * i == -w);
+        REQUIRE(j * j == -w);
+        REQUIRE(k * k == -w);
+        REQUIRE(i * j == k);
+        REQUIRE(j * i == -k);
+        REQUIRE(j * k == i);
+        REQUIRE(k * j == -i);
+        REQUIRE(k * i == j);
+        REQUIRE(i * k == -j);
+    }
+
+    SECTION("Identity multiplication")
+    {
+        constexpr quaternionlib::Quaternion<int> q{1, 2, 3, 4};
+
+        REQUIRE(q * w == q);
+        REQUIRE(w * q == q);
+    }
+
+    SECTION("Inverse multiplication")
+    {
+        constexpr quaternionlib::Quaternion<double> q{1, 0, 0, 2};
+        constexpr auto inversed = q.Inversed();
+
+        REQUIRE(q * inversed == w);
+        REQUIRE(inversed * q == w);
+    }
+
+    SECTION("General use - same types")
+    {
+        constexpr quaternionlib::Quaternion<int> q1{1, 2, 3, 4};
+        constexpr quaternionlib::Quaternion<int> q2{3, 4, 1, 2};
+        constexpr quaternionlib::Quaternion<int> result{4, 28, 8, -6};
+
+        REQUIRE(q1 * q2 == result);
+        REQUIRE_FALSE(q2 * q1 == result);
+    }
+
+    SECTION("General use - different types")
+    {
+        constexpr quaternionlib::Quaternion<int> q1{1, 2, 3, 4};
+        constexpr quaternionlib::Quaternion<double> q2{3.5, 4.0, 1.5, 2.0};
+        constexpr quaternionlib::Quaternion<double> result{7.0, 29.0, 9.0, -8.0};
+
+        REQUIRE(q1 * q2 == result);
+        REQUIRE_FALSE(q2 * q1 == result);
     }
 }
