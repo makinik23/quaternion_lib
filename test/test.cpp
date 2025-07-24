@@ -181,16 +181,6 @@ TEST_CASE("Moving quaternion")
     }
 }
 
-TEST_CASE("Creating an object - angle axis") // TODO
-{
-   
-}
-
-TEST_CASE("Creating an object - rotational matrix") // TODO
-{
-
-}
-
 TEST_CASE("Normalizing")
 {
     SECTION("Norm and Squared norm")
@@ -201,26 +191,34 @@ TEST_CASE("Normalizing")
         REQUIRE(q.Norm() == Approx(std::sqrt(1.0 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0)));
     }
 
-    SECTION("normalize and normalized")
+    SECTION("Normalize and Normalized")
     {
-        const quaternionlib::Quaternion<double> q{2.0, 0.0, 0.0, 0.0};
-        const auto norm = q.Norm();
-        const auto normalized = q.Normalize();
+        quaternionlib::Quaternion<double> q{2, 1, 3, 0};
+        const auto qNormalized = q.Normalized();
+        q.Normalize();
 
-        REQUIRE(normalized.X() == Approx(1.0));
-        REQUIRE(normalized.Y() == Approx(0.0));
-        REQUIRE(normalized.Z() == Approx(0.0));
-        REQUIRE(normalized.W() == Approx(0.0));
-        REQUIRE(q.Norm() == norm);
+        REQUIRE(q == qNormalized);
     }
 
     SECTION("IsNormalized method")
     {
-        const quaternionlib::Quaternion<double> q1{1.0 / std::sqrt(2), 0.0, 0.0, 1.0 / std::sqrt(2)};
-        const quaternionlib::Quaternion<double> q2{1.0, 2.0, 3.0, 4.0};
+        constexpr quaternionlib::Quaternion<double> q1{1.0 / 1.4142135, 0.0, 0.0, 1.0 /1.4142135};
+        constexpr quaternionlib::Quaternion<double> q2{1.0, 2.0, 3.0, 4.0};
 
         REQUIRE(q1.IsNormalized());
         REQUIRE_FALSE(q2.IsNormalized());
+    }
+}
+
+TEST_CASE("Conjugation")
+{
+    SECTION("Conjugate and conjugated")
+    {
+        quaternionlib::Quaternion<double> q{1.0, 2.0, 3.0, 4.0};
+        const auto result = q.Conjugated();
+        q.Conjugate();
+
+        REQUIRE(q == result);
     }
 }
 
@@ -327,6 +325,19 @@ TEST_CASE("Substraction")
     }
 }
 
+TEST_CASE("Hamilton product assignment")
+{
+    SECTION("Hamilton product assignment same types")
+    {
+
+    }
+
+    SECTION("Hamilton product assignment different types")
+    {
+        
+    }
+}
+
 TEST_CASE("Scalar multiplication assignment")
 {
     SECTION("Scalar multilication assignment same types")
@@ -376,10 +387,10 @@ TEST_CASE("Scalar division assignment")  // TODO divide by zero
         REQUIRE(q == result);
     }
 
-    SECTION("Scalar dividing by zero")
+    SECTION("Scalar dividing by zero") // TODO
     {
 
-    } 
+    }
 }
 
 TEST_CASE("Scalar multiplication")
@@ -423,5 +434,53 @@ TEST_CASE("Scalar division")
         constexpr quaternionlib::Quaternion<double> result{10, 6.25, 1.25, 3.75};
 
         REQUIRE(q / scalar == result);
+    }
+
+    SECTION("Division by zero")
+    {
+        constexpr auto divideByZero = []()
+        {
+            constexpr quaternionlib::Quaternion<int> q{8, 5, 1, 3};
+            constexpr double scalar {0};
+
+            return q / scalar;
+        };
+        
+        REQUIRE_THROWS_AS(divideByZero(), std::domain_error);
+    }
+}
+
+TEST_CASE("Hamilton product")
+{
+    constexpr quaternionlib::Quaternion<int> i{1, 0, 0, 0};
+    constexpr quaternionlib::Quaternion<int> j{0, 1, 0, 0};
+    constexpr quaternionlib::Quaternion<int> k{0, 0, 1, 0};
+    constexpr quaternionlib::Quaternion<int> w{0, 0, 0, 1};
+
+    SECTION("Quaternion identities")
+    {
+        REQUIRE(i * i == -w);
+        REQUIRE(j * j == -w);
+        REQUIRE(k * k == -w);
+        REQUIRE(i * j == k);
+        REQUIRE(j * i == -k);
+        REQUIRE(j * k == i);
+        REQUIRE(k * j == -i);
+        REQUIRE(k * i == j);
+        REQUIRE(i * k == -j);
+    }
+
+    SECTION("Identity multiplication")
+    {
+        constexpr quaternionlib::Quaternion<int> q{1, 2, 3, 4};
+
+        REQUIRE(q * w == q);
+        REQUIRE(w * q == q);
+    }
+
+    SECTION("Inverse multiplication")
+    {
+        quaternionlib::Quaternion<double> q{1, 2, 3, 4};
+        q.Normalize();
     }
 }
