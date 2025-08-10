@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <concepts>
+#include <expected>
 #include <ostream>
 #include <type_traits>
 #include <utility>
@@ -13,8 +14,20 @@ namespace quaternionlib
     template <typename T>
     static inline constexpr T EPSILON = std::numeric_limits<T>::epsilon();
 
+    namespace error
+    {
+        enum class QuaternionError : std::uint8_t
+        {
+            DivisionByZero,
+            InvalidQuaternionSize,
+        };
+    }
+
     namespace details
     {
+        template <typename ResultType>
+        using Result = std::expected<ResultType, error::QuaternionError>;
+
         template <typename T>
         static inline constexpr auto is_arithmetic_v = std::is_arithmetic<T>::value;
 
@@ -57,8 +70,8 @@ namespace quaternionlib
         constexpr Quaternion(std::initializer_list<T> values);
         constexpr auto operator=(std::initializer_list<T> values) -> Quaternion<T>&;
 
-        constexpr Quaternion(const Quaternion<T>& other) noexcept;
-        constexpr auto operator=(const Quaternion<T>& other) noexcept -> Quaternion<T>&;
+        constexpr Quaternion(const Quaternion<T>& other) noexcept = default;
+        constexpr auto operator=(const Quaternion<T>& other) noexcept -> Quaternion<T>& = default;
 
         constexpr Quaternion(Quaternion<T>&& other) noexcept;
         constexpr auto operator=(Quaternion<T>&& other) noexcept -> Quaternion<T>&;
@@ -79,10 +92,20 @@ namespace quaternionlib
         requires details::QuaternionConvertible<U, T>
         constexpr auto operator=(Quaternion<U>&& other) noexcept -> Quaternion<T>&;
 
-        [[nodiscard]] constexpr auto X() const noexcept -> T;
-        [[nodiscard]] constexpr auto Y() const noexcept -> T;
-        [[nodiscard]] constexpr auto Z() const noexcept -> T;
-        [[nodiscard]] constexpr auto W() const noexcept -> T;
+        [[nodiscard]] constexpr auto X() noexcept -> T&;
+        [[nodiscard]] constexpr auto X() const noexcept -> const T&;
+
+        [[nodiscard]] constexpr auto Y() noexcept -> T&;
+        [[nodiscard]] constexpr auto Y() const noexcept -> const T&;
+
+        [[nodiscard]] constexpr auto Z() noexcept -> T&;
+        [[nodiscard]] constexpr auto Z() const noexcept -> const T&;
+
+        [[nodiscard]] constexpr auto W() noexcept -> T&;
+        [[nodiscard]] constexpr auto W() const noexcept -> const T&;
+
+        [[nodiscard]] constexpr auto ScalarPart() const noexcept -> T;  // probably not needed
+        [[nodiscard]] constexpr auto VectorPart() const noexcept -> std::array<T, 3>;
 
         constexpr auto Zero() noexcept -> void;
 
@@ -125,19 +148,22 @@ namespace quaternionlib
 
         constexpr auto operator-() const noexcept -> Quaternion<T>;
 
+        constexpr auto operator[](std::size_t index) -> T&;
+        constexpr auto operator[](std::size_t index) const -> const T&;
+
     private:
         T _x{}, _y{}, _z{}, _w{};
     };
 
     template <details::Arithmetic T>
     constexpr Quaternion<T>::Quaternion(const T& x, const T& y, const T& z, const T& w) noexcept
-        : _x(x), _y(y), _z(z), _w(w)
+        : _x{x}, _y{y}, _z{z}, _w{w}
     {
     }
 
     template <details::Arithmetic T>
     constexpr Quaternion<T>::Quaternion(const T& x, const T& y, const T& z) noexcept
-        : _x(x), _y(y), _z(z), _w(static_cast<T>(1))
+        : _x{x}, _y{y}, _z{z}, _w{static_cast<T>(1)}
     {
     }
 
@@ -179,25 +205,26 @@ namespace quaternionlib
         }
     }
 
-    template <details::Arithmetic T>
-    constexpr Quaternion<T>::Quaternion(const Quaternion<T>& other) noexcept
-        : _x(other._x), _y(other._y), _z(other._z), _w(other._w)
-    {
-    }
+    // template <details::Arithmetic T>
+    // constexpr Quaternion<T>::Quaternion(const Quaternion<T>& other) noexcept
+    //     : _x{other._x}, _y{other._y}, _z{other._z}, _w{other._w}
+    // {
+    // }
 
-    template <details::Arithmetic T>
-    constexpr auto Quaternion<T>::operator=(const Quaternion<T>& other) noexcept -> Quaternion<T>&
-    {
-        if (this != &other)
-        {
-            _x = other._x;
-            _y = other._y;
-            _z = other._z;
-            _w = other._w;
-        }
+    // template <details::Arithmetic T>
+    // constexpr auto Quaternion<T>::operator=(const Quaternion<T>& other) noexcept ->
+    // Quaternion<T>&
+    // {
+    //     if (this != &other)
+    //     {
+    //         _x = other._x;
+    //         _y = other._y;
+    //         _z = other._z;
+    //         _w = other._w;
+    //     }
 
-        return *this;
-    }
+    //     return *this;
+    // }
 
     template <details::Arithmetic T>
     constexpr Quaternion<T>::Quaternion(Quaternion<T>&& other) noexcept
@@ -226,10 +253,10 @@ namespace quaternionlib
     template <details::Arithmetic U>
     requires details::QuaternionConvertible<U, T>
     constexpr Quaternion<T>::Quaternion(const Quaternion<U>& other) noexcept
-        : _x(static_cast<T>(other.X())),
-          _y(static_cast<T>(other.Y())),
-          _z(static_cast<T>(other.Z())),
-          _w(static_cast<T>(other.W()))
+        : _x{static_cast<T>(other.X())},
+          _y{static_cast<T>(other.Y())},
+          _z{static_cast<T>(other.Z())},
+          _w{static_cast<T>(other.W())}
     {
     }
 
@@ -249,11 +276,11 @@ namespace quaternionlib
     template <details::Arithmetic T>
     template <details::Arithmetic U>
     requires details::QuaternionConvertible<U, T>
-    constexpr Quaternion<T>::Quaternion([[maybe_unused]] Quaternion<U>&& other) noexcept
-        : _x(static_cast<T>(other.X())),
-          _y(static_cast<T>(other.Y())),
-          _z(static_cast<T>(other.Z())),
-          _w(static_cast<T>(other.W()))
+    constexpr Quaternion<T>::Quaternion(Quaternion<U>&& other) noexcept
+        : _x{std::move(static_cast<T>(other.X()))},
+          _y{std::move(static_cast<T>(other.Y()))},
+          _z{std::move(static_cast<T>(other.Z()))},
+          _w{std::move(static_cast<T>(other.W()))}
     {
         other.Zero();
     }
@@ -261,37 +288,76 @@ namespace quaternionlib
     template <details::Arithmetic T>
     template <details::Arithmetic U>
     requires details::QuaternionConvertible<U, T>
-    constexpr auto Quaternion<T>::operator=([[maybe_unused]] Quaternion<U>&& other) noexcept
-        -> Quaternion<T>&
+    constexpr auto Quaternion<T>::operator=(Quaternion<U>&& other) noexcept -> Quaternion<T>&
     {
-        *this = static_cast<Quaternion<T>>(std::move(other));
+        _x = std::move(static_cast<T>(other.X()));
+        _y = std::move(static_cast<T>(other.Y()));
+        _z = std::move(static_cast<T>(other.Z()));
+        _w = std::move(static_cast<T>(other.W()));
+
         other.Zero();
 
         return *this;
     }
 
     template <details::Arithmetic T>
-    constexpr auto Quaternion<T>::X() const noexcept -> T
+    constexpr auto Quaternion<T>::X() noexcept -> T&
     {
         return _x;
     }
 
     template <details::Arithmetic T>
-    constexpr auto Quaternion<T>::Y() const noexcept -> T
+    constexpr auto Quaternion<T>::X() const noexcept -> const T&
+    {
+        return _x;
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::Y() noexcept -> T&
     {
         return _y;
     }
 
     template <details::Arithmetic T>
-    constexpr auto Quaternion<T>::Z() const noexcept -> T
+    constexpr auto Quaternion<T>::Y() const noexcept -> const T&
+    {
+        return _y;
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::Z() noexcept -> T&
     {
         return _z;
     }
 
     template <details::Arithmetic T>
-    constexpr auto Quaternion<T>::W() const noexcept -> T
+    constexpr auto Quaternion<T>::Z() const noexcept -> const T&
+    {
+        return _z;
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::W() noexcept -> T&
     {
         return _w;
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::W() const noexcept -> const T&
+    {
+        return _w;
+    }
+    
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::ScalarPart() const noexcept -> T
+    {
+        return _w;
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::VectorPart() const noexcept -> std::array<T, 3>
+    {
+        return {_x, _y, _z};
     }
 
     template <details::Arithmetic T>
@@ -450,8 +516,10 @@ namespace quaternionlib
     {
         using V = std::common_type_t<T, U>;
 
-        return std::abs(lhs.W() - rhs.W()) <= EPSILON<V> && std::abs(lhs.X() - rhs.X()) <= EPSILON<V> &&
-               std::abs(lhs.Y() - rhs.Y()) <= EPSILON<V> && std::abs(lhs.Z() - rhs.Z()) <= EPSILON<V>;
+        return std::abs(lhs.W() - rhs.W()) <= EPSILON<V> &&
+               std::abs(lhs.X() - rhs.X()) <= EPSILON<V> &&
+               std::abs(lhs.Y() - rhs.Y()) <= EPSILON<V> &&
+               std::abs(lhs.Z() - rhs.Z()) <= EPSILON<V>;
     }
 
     template <details::Arithmetic T, details::Arithmetic U>
@@ -579,6 +647,65 @@ namespace quaternionlib
     constexpr auto Quaternion<T>::operator-() const noexcept -> Quaternion<T>
     {
         return Quaternion{-_x, -_y, -_z, -_w};
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::operator[](std::size_t index) -> T&
+    {
+        switch (index)
+        {
+            case 0: return _x;
+            case 1: return _y;
+            case 2: return _z;
+            case 3: return _w;
+            default: throw std::out_of_range("Index out of bounds for Quaternion access.");
+        }
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::operator[](std::size_t index) const -> const T&
+    {
+        switch (index)
+        {
+            case 0: return _x;
+            case 1: return _y;
+            case 2: return _z;
+            case 3: return _w;
+            default: throw std::out_of_range("Index out of bounds for Quaternion access.");
+        }
+    }
+
+    // template <details::Arithmetic T>
+    // constexpr auto swap(Quaternion<T>& lhs, Quaternion<T>& rhs) noexcept -> void
+    // {
+    //     using std::swap;
+
+    //     swap(lhs.X(), rhs.X());
+    //     swap(lhs.Y(), rhs.Y());
+    //     swap(lhs.Z(), rhs.Z());
+    //     swap(lhs.W(), rhs.W());
+    // }
+
+    template <details::Arithmetic T, details::Arithmetic U>
+    [[nodiscard]] constexpr inline auto Dot(const Quaternion<T>& lhs, const Quaternion<U>& rhs) noexcept  // get rid of inline if needed
+        -> std::common_type_t<T, U>
+    {
+        using V = std::common_type_t<T, U>;
+        return static_cast<V>(lhs.W()) * static_cast<V>(rhs.W()) +
+               static_cast<V>(lhs.X()) * static_cast<V>(rhs.X()) +
+               static_cast<V>(lhs.Y()) * static_cast<V>(rhs.Y()) +
+               static_cast<V>(lhs.Z()) * static_cast<V>(rhs.Z());
+    }
+
+    template <details::Arithmetic T>
+    [[nodiscard]] constexpr auto Lerp(const Quaternion<T>& a, const Quaternion<T>& b, T t) noexcept -> Quaternion<T>
+    {
+        return Quaternion<T>{
+            (static_cast<T>(1) - t) * a.X() + t * b.X(),
+            (static_cast<T>(1) - t) * a.Y() + t * b.Y(),
+            (static_cast<T>(1) - t) * a.Z() + t * b.Z(),
+            (static_cast<T>(1) - t) * a.W() + t * b.W()
+        };
     }
 
 } // namespace quaternionlib

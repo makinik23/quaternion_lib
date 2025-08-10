@@ -181,6 +181,14 @@ TEST_CASE("Moving quaternion")
 
 TEST_CASE("Normalizing")
 {
+    // SECTION("Normalized INTEGER")
+    // {
+    //     const quaternionlib::Quaternion<int> q{1,2,3,4};
+    //     const auto normalized = q.Norm();
+
+    //     REQUIRE(normalized == 1);
+    // }
+
     SECTION("Norm and Squared norm")
     {
         constexpr quaternionlib::Quaternion<double> q{1.0, 2.0, 3.0, 4.0};
@@ -507,5 +515,50 @@ TEST_CASE("Hamilton product")
 
         REQUIRE(q1 * q2 == result);
         REQUIRE_FALSE(q2 * q1 == result);
+    }
+}
+
+TEST_CASE("Square brackets member access operator")
+{
+    constexpr quaternionlib::Quaternion q{1, 2, 3, 4};
+
+    REQUIRE(q[0] == 1);
+    REQUIRE(q[1] == 2);
+    REQUIRE(q[2] == 3);
+    REQUIRE(q[3] == 4);
+}
+
+TEST_CASE("Swapping quaternions")
+{
+        quaternionlib::Quaternion<int> q1{1, 2, 3, 4};
+        quaternionlib::Quaternion<int> q2{4, 3, 2, 1};
+
+        auto result1 = q1;
+        auto result2 = q2;
+
+        std::swap(q1, q2);
+
+        REQUIRE(q1 == result2);
+        REQUIRE(q2 == result1);
+}
+
+TEST_CASE("Dot product")
+{
+    SECTION("Same types")
+    {
+        constexpr quaternionlib::Quaternion<int> q1{1, 2, 3, 4};
+        constexpr quaternionlib::Quaternion<int> q2{5, 6, 7, 8};
+        constexpr int result = 1 * 5 + 2 * 6 + 3 * 7 + 4 * 8;
+
+        REQUIRE(quaternionlib::Dot(q1, q2) == result);
+    }
+
+    SECTION("Different types")
+    {
+        constexpr quaternionlib::Quaternion<int> q1{1, 2, 3, 4};
+        constexpr quaternionlib::Quaternion<double> q2{5.5, 6.5, 7.5, 8.5};
+        constexpr double result = 1 * 5.5 + 2 * 6.5 + 3 * 7.5 + 4 * 8.5;
+
+        REQUIRE(quaternionlib::Dot(q1, q2) == result);
     }
 }

@@ -23,3 +23,6 @@ hicpp-*,
 -hicpp-braces-around-statements,
 -hicpp-no-array-decay
 '
+CheckOptions:
+    - key: cppcoreguidelines-rvalue-reference-param-not-moved.AllowPartialMove
+      value: true
