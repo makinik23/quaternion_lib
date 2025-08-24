@@ -6,6 +6,7 @@
 
 using Catch::Approx;
 using quaternionlib::EPSILON;
+using quaternionlib::Quaternion;
 
 namespace
 {
@@ -394,12 +395,19 @@ TEST_CASE("Scalar division assignment")
     SECTION("Scalar division assignment different types")
     {
         quaternionlib::Quaternion<double> q{6, 8, 1, 3};
-        const int scalar{2};
-        const quaternionlib::Quaternion<double> result{3, 4, 0.5, 1.5};
+        constexpr int scalar{2};
+        constexpr quaternionlib::Quaternion<double> result{3, 4, 0.5, 1.5};
 
         q /= scalar;
 
         REQUIRE(q == result);
+    }
+
+    SECTION("Division by zero")
+    {
+        quaternionlib::Quaternion<double> q{1, 2, 3, 4};
+
+        REQUIRE_THROWS_AS(q /= 0, std::domain_error);
     }
 }
 
@@ -560,5 +568,143 @@ TEST_CASE("Dot product")
         constexpr double result = 1 * 5.5 + 2 * 6.5 + 3 * 7.5 + 4 * 8.5;
 
         REQUIRE(quaternionlib::Dot(q1, q2) == result);
+    }
+}
+
+TEST_CASE("Linear interpolation")
+{
+    constexpr Quaternion<double> q1{1, 0, 0, 0};
+    constexpr Quaternion<double> q2{0, 1, 0, 0};
+
+    SECTION("t = 0 returns q1")
+    {
+        const auto result = Lerp(q1, q2, 0.0);
+
+        REQUIRE(result.has_value());
+        REQUIRE(result == q1.Normalized());
+    }
+
+    SECTION("t = 1 returns q2")
+    {
+        const auto result = Lerp(q1, q2, 1.0);
+
+        REQUIRE(result.has_value());
+        REQUIRE(result == q2.Normalized());
+    }
+
+    SECTION("t = 0.5 returns normalized average")
+    {
+        const auto result = Lerp(q1, q2, 0.5);
+
+        Quaternion<double> expected{1.0 / std::sqrt(2), 1.0 / std::sqrt(2), 0.0, 0.0};
+
+        REQUIRE(result.has_value());
+        REQUIRE(result == expected);
+    }
+
+    SECTION("Invalid interpolation time")
+    {
+        const auto tooLow = Lerp(q1, q2, -0.1);
+
+        REQUIRE_FALSE(tooLow.has_value());
+        REQUIRE(tooLow.error() == quaternionlib::error::QuaternionError::InvalidInterpolationTime);
+
+        const auto tooHigh = Lerp(q1, q2, 1.5);
+
+        REQUIRE_FALSE(tooHigh.has_value());
+        REQUIRE(tooHigh.error() == quaternionlib::error::QuaternionError::InvalidInterpolationTime);
+    }
+}
+
+TEST_CASE("Spherical interpolation")
+{
+    constexpr Quaternion<double> q1{1, 0, 0, 0};
+    constexpr Quaternion<double> q2{0, 1, 0, 0};
+
+    SECTION("t = 0 returns q1")
+    {
+        const auto result = Slerp(q1, q2, 0.0);
+
+        REQUIRE(result.has_value());
+        REQUIRE(result == q1.Normalized());
+    }
+
+    SECTION("t = 1 returns q2")
+    {
+        const auto result = Slerp(q1, q2, 1.0);
+
+        REQUIRE(result.has_value());
+        REQUIRE(result == q2.Normalized());
+    }
+
+    SECTION("t = 0.5 returns expected interpolated quaternion")
+    {
+        const auto result = Slerp(q1, q2, 0.5);
+        const quaternionlib::Quaternion<double> expected{std::sqrt(2) / 2, std::sqrt(2) / 2, 0, 0};
+
+        REQUIRE(result.has_value());
+        REQUIRE(result == expected);
+    }
+
+    SECTION("Invalid interpolation time")
+    {
+       const auto tooLow = Slerp(q1, q2, -0.1);
+
+        REQUIRE_FALSE(tooLow.has_value());
+        REQUIRE(tooLow.error() == quaternionlib::error::QuaternionError::InvalidInterpolationTime);
+
+        const auto tooHigh = Slerp(q1, q2, 1.5);
+
+        REQUIRE_FALSE(tooHigh.has_value());
+        REQUIRE(tooHigh.error() == quaternionlib::error::QuaternionError::InvalidInterpolationTime);
+    }
+}
+
+TEST_CASE("AngleBetween")
+{
+
+    SECTION("Zero angle between identical quaternions")
+    {
+        constexpr Quaternion<double> q{1.0, 0.0, 0.0, 0.0};
+
+        REQUIRE(AngleBetween(q, q) == 0.0);
+    }
+
+    SECTION("Angle between opposite quaternions")
+    {
+        constexpr Quaternion<double> q1{1.0, 0.0, 0.0, 0.0};
+        constexpr Quaternion<double> q2{-1.0, 0.0, 0.0, 0.0};
+
+        REQUIRE(AngleBetween(q1, q2) == Approx(PI));
+    }
+
+    SECTION("Angle between orthogonal quaternions")
+    {
+        constexpr Quaternion<double> q1{1.0, 0.0, 0.0, 0.0};
+        constexpr Quaternion<double> q2{0.0, 1.0, 0.0, 0.0};
+
+        REQUIRE(AngleBetween(q1, q2) == Catch::Approx(PI / 2));
+    }
+
+    SECTION("Angle between known quaternions")
+    {
+        constexpr Quaternion<double> q1{1.0, 2.0, 3.0, 4.0};
+        constexpr Quaternion<double> q2{3.0, 1.0, 4.0, 2.0};
+
+        const double angle = AngleBetween(q1, q2);
+
+        REQUIRE(angle >= 0.0);
+        REQUIRE(angle <= PI);
+    }
+
+    SECTION("Symmetry")
+    {
+        constexpr Quaternion<double> q1{1.0, 2.0, 3.0, 4.0};
+        constexpr Quaternion<double> q2{3.0, 1.0, 4.0, 2.0};
+
+        const double angle1 = AngleBetween(q1, q2);
+        const double angle2 = AngleBetween(q2, q1);
+
+        REQUIRE(angle1 == angle2);
     }
 }

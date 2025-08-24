@@ -1,10 +1,10 @@
 #ifndef QUATERNIONLIB_QUATERNION_HPP
 #define QUATERNIONLIB_QUATERNION_HPP
 
-#include <cstdint>
 #include <cassert>
 #include <cmath>
 #include <concepts>
+#include <cstdint>
 #include <expected>
 #include <ostream>
 #include <type_traits>
@@ -21,6 +21,7 @@ namespace quaternionlib
         {
             DivisionByZero = 0,
             InvalidQuaternionSize = 1,
+            InvalidInterpolationTime = 2
         };
     }
 
@@ -42,6 +43,8 @@ namespace quaternionlib
             { v * v } -> std::same_as<T>;
             { v / v } -> std::same_as<T>;
             { -v } -> std::same_as<T>;
+            { v == v } -> std::same_as<bool>;
+            { v != v } -> std::same_as<bool>;
         };
 
         template <typename T, typename U>
@@ -105,7 +108,7 @@ namespace quaternionlib
         [[nodiscard]] constexpr auto W() noexcept -> T&;
         [[nodiscard]] constexpr auto W() const noexcept -> const T&;
 
-        [[nodiscard]] constexpr auto ScalarPart() const noexcept -> T;  // probably not needed
+        [[nodiscard]] constexpr auto ScalarPart() const noexcept -> T; // probably not needed
         [[nodiscard]] constexpr auto VectorPart() const noexcept -> std::array<T, 3>;
 
         constexpr auto Zero() noexcept -> void;
@@ -145,7 +148,7 @@ namespace quaternionlib
 
         template <details::Scalar<T> U>
         requires details::QuaternionConvertible<U, T>
-        constexpr auto operator/=(const U& scalar) noexcept -> Quaternion<T>&;
+        constexpr auto operator/=(const U& scalar) -> Quaternion<T>&;
 
         constexpr auto operator-() const noexcept -> Quaternion<T>;
 
@@ -205,12 +208,6 @@ namespace quaternionlib
             return *this;
         }
     }
-
-    // template <details::Arithmetic T>
-    // constexpr Quaternion<T>::Quaternion(const Quaternion<T>& other) noexcept
-    //     : _x{other._x}, _y{other._y}, _z{other._z}, _w{other._w}
-    // {
-    // }
 
     // template <details::Arithmetic T>
     // constexpr auto Quaternion<T>::operator=(const Quaternion<T>& other) noexcept ->
@@ -348,7 +345,7 @@ namespace quaternionlib
     {
         return _w;
     }
-    
+
     template <details::Arithmetic T>
     constexpr auto Quaternion<T>::ScalarPart() const noexcept -> T
     {
@@ -494,10 +491,10 @@ namespace quaternionlib
 
         auto it = list.begin();
 
-        const auto x = *it++;
-        const auto y = *it++;
-        const auto z = *it++;
-        const auto w = *it;
+        constexpr auto x = *it++;
+        constexpr auto y = *it++;
+        constexpr auto z = *it++;
+        constexpr auto w = *it;
 
         return q.X() == x && q.Y() == y && q.Z() == z && q.W() == w;
     }
@@ -512,15 +509,12 @@ namespace quaternionlib
 
     template <details::Arithmetic T, details::Arithmetic U>
     requires details::QuaternionConvertible<T, U>
-    [[nodiscard]] constexpr auto IsApproxEqual(const Quaternion<T>& lhs,
-                                               const Quaternion<U>& rhs) noexcept -> bool
+    [[nodiscard]] constexpr auto
+    IsApproxEqual(const Quaternion<T>& lhs, const Quaternion<U>& rhs,
+                  const bool epsilon = EPSILON<std::common_type_t<T, U>>) noexcept -> bool
     {
-        using V = std::common_type_t<T, U>;
-
-        return std::abs(lhs.W() - rhs.W()) <= EPSILON<V> &&
-               std::abs(lhs.X() - rhs.X()) <= EPSILON<V> &&
-               std::abs(lhs.Y() - rhs.Y()) <= EPSILON<V> &&
-               std::abs(lhs.Z() - rhs.Z()) <= EPSILON<V>;
+        return std::abs(lhs.W() - rhs.W()) <= epsilon && std::abs(lhs.X() - rhs.X()) <= epsilon &&
+               std::abs(lhs.Y() - rhs.Y()) <= epsilon && std::abs(lhs.Z() - rhs.Z()) <= epsilon;
     }
 
     template <details::Arithmetic T, details::Arithmetic U>
@@ -582,10 +576,12 @@ namespace quaternionlib
     template <details::Arithmetic T>
     template <details::Scalar<T> U>
     requires details::QuaternionConvertible<U, T>
-    constexpr auto Quaternion<T>::operator/=(const U& scalar) noexcept
-        -> Quaternion<T>& // TODO u dumb if 0
+    constexpr auto Quaternion<T>::operator/=(const U& scalar) -> Quaternion<T>&
     {
-        assert(scalar != 0);
+        if (scalar == 0)
+        {
+            throw std::domain_error("One must not divide by 0");
+        }
 
         _w /= static_cast<T>(scalar);
         _x /= static_cast<T>(scalar);
@@ -597,7 +593,7 @@ namespace quaternionlib
 
     template <details::Arithmetic T, details::Scalar<T> U>
     requires details::QuaternionConvertible<U, T>
-    constexpr auto operator*(const Quaternion<T>& lhs, const U& rhs)
+    constexpr auto operator*(const Quaternion<T>& lhs, const U& rhs) noexcept
         -> Quaternion<std::common_type_t<T, U>>
     {
         auto tmp = static_cast<Quaternion<std::common_type_t<T, U>>>(lhs);
@@ -608,7 +604,7 @@ namespace quaternionlib
 
     template <details::Arithmetic T, details::Scalar<T> U>
     requires details::QuaternionConvertible<U, T>
-    constexpr auto operator*(const U& lhs, const Quaternion<T>& rhs)
+    constexpr auto operator*(const U& lhs, const Quaternion<T>& rhs) noexcept
         -> Quaternion<std::common_type_t<T, U>>
     {
         auto tmp = static_cast<Quaternion<std::common_type_t<T, U>>>(rhs);
@@ -635,7 +631,7 @@ namespace quaternionlib
 
     template <details::Arithmetic T, details::Arithmetic U>
     requires details::QuaternionConvertible<U, T>
-    constexpr auto operator*(const Quaternion<T>& lhs, const Quaternion<U>& rhs)
+    constexpr auto operator*(const Quaternion<T>& lhs, const Quaternion<U>& rhs) noexcept
         -> Quaternion<std::common_type_t<T, U>>
     {
         auto tmp = static_cast<Quaternion<std::common_type_t<T, U>>>(lhs);
@@ -655,11 +651,16 @@ namespace quaternionlib
     {
         switch (index)
         {
-            case 0: return _x;
-            case 1: return _y;
-            case 2: return _z;
-            case 3: return _w;
-            default: throw std::out_of_range("Index out of bounds for Quaternion access.");
+        case 0:
+            return _x;
+        case 1:
+            return _y;
+        case 2:
+            return _z;
+        case 3:
+            return _w;
+        default:
+            throw std::out_of_range("Index out of bounds for Quaternion access.");
         }
     }
 
@@ -668,27 +669,32 @@ namespace quaternionlib
     {
         switch (index)
         {
-            case 0: return _x;
-            case 1: return _y;
-            case 2: return _z;
-            case 3: return _w;
-            default: throw std::out_of_range("Index out of bounds for Quaternion access.");
+        case 0:
+            return _x;
+        case 1:
+            return _y;
+        case 2:
+            return _z;
+        case 3:
+            return _w;
+        default:
+            throw std::out_of_range("Index out of bounds for Quaternion access.");
         }
     }
 
-    // template <details::Arithmetic T>
-    // constexpr auto swap(Quaternion<T>& lhs, Quaternion<T>& rhs) noexcept -> void
-    // {
-    //     using std::swap;
+    template <details::Arithmetic T>
+    constexpr auto swap(Quaternion<T>& lhs, Quaternion<T>& rhs) noexcept -> void
+    {
+        using std::swap;
 
-    //     swap(lhs.X(), rhs.X());
-    //     swap(lhs.Y(), rhs.Y());
-    //     swap(lhs.Z(), rhs.Z());
-    //     swap(lhs.W(), rhs.W());
-    // }
+        swap(lhs.X(), rhs.X());
+        swap(lhs.Y(), rhs.Y());
+        swap(lhs.Z(), rhs.Z());
+        swap(lhs.W(), rhs.W());
+    }
 
     template <details::Arithmetic T, details::Arithmetic U>
-    [[nodiscard]] constexpr inline auto Dot(const Quaternion<T>& lhs, const Quaternion<U>& rhs) noexcept  // get rid of inline if needed
+    [[nodiscard]] constexpr auto Dot(const Quaternion<T>& lhs, const Quaternion<U>& rhs) noexcept
         -> std::common_type_t<T, U>
     {
         using V = std::common_type_t<T, U>;
@@ -699,16 +705,65 @@ namespace quaternionlib
     }
 
     template <details::Arithmetic T>
-    [[nodiscard]] constexpr auto Lerp(const Quaternion<T>& a, const Quaternion<T>& b, T t) noexcept -> Quaternion<T>
+    [[nodiscard]] constexpr auto Lerp(const Quaternion<T>& lhs, const Quaternion<T>& rhs,
+                                      const T t) noexcept -> details::Result<Quaternion<T>>
     {
-        return Quaternion<T>{
-            (static_cast<T>(1) - t) * a.X() + t * b.X(),
-            (static_cast<T>(1) - t) * a.Y() + t * b.Y(),
-            (static_cast<T>(1) - t) * a.Z() + t * b.Z(),
-            (static_cast<T>(1) - t) * a.W() + t * b.W()
-        };
+        if (t < 0 || t > 1)
+        {
+            return std::unexpected(error::QuaternionError::InvalidInterpolationTime);
+        }
+
+        return Quaternion<T>{(static_cast<T>(1) - t) * lhs.X() + t * rhs.X(),
+                             (static_cast<T>(1) - t) * lhs.Y() + t * rhs.Y(),
+                             (static_cast<T>(1) - t) * lhs.Z() + t * rhs.Z(),
+                             (static_cast<T>(1) - t) * lhs.W() + t * rhs.W()}
+            .Normalized();
     }
 
+    template <details::Arithmetic T>
+    [[nodiscard]] constexpr auto Slerp(const Quaternion<T>& q1, const Quaternion<T>& q2,
+                                       const T t) noexcept -> details::Result<Quaternion<T>>
+    {
+        if (t < static_cast<T>(0) || t > static_cast<T>(1))
+        {
+            return std::unexpected(error::QuaternionError::InvalidInterpolationTime);
+        }
+
+        auto q1n = q1.Normalized();
+        auto q2n = q2.Normalized();
+
+        T dot = Dot(q1n, q2n);
+
+        if (dot < static_cast<T>(0))
+        {
+            q2n = -q2n;
+            dot = -dot;
+        }
+
+        constexpr auto threshold = 0.9995;
+
+        if (dot > threshold)
+        {
+            return Lerp(q1n, q2n, t).value().Normalized();
+        }
+
+        const T theta = std::acos(dot);
+        const T sin_theta = std::sin(theta);
+
+        const T a = std::sin((1 - t) * theta) / sin_theta;
+        const T b = std::sin(t * theta) / sin_theta;
+
+        return (q1n * a + q2n * b).Normalized();
+    }
+
+    template <details::Arithmetic T>
+    [[nodiscard]] constexpr auto AngleBetween(const Quaternion<T>& q1,
+                                              const Quaternion<T>& q2) noexcept -> T
+    {
+        const T dot = Dot(q1.Normalized(), q2.Normalized());
+
+        return std::acos(dot);
+    }
 } // namespace quaternionlib
 
 #endif // QUATERNIONLIB_QUATERNION_HPP
