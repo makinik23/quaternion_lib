@@ -1,6 +1,7 @@
 #ifndef QUATERNIONLIB_QUATERNION_HPP
 #define QUATERNIONLIB_QUATERNION_HPP
 
+#include <cstdint>
 #include <cassert>
 #include <cmath>
 #include <concepts>
@@ -18,8 +19,8 @@ namespace quaternionlib
     {
         enum class QuaternionError : std::uint8_t
         {
-            DivisionByZero,
-            InvalidQuaternionSize,
+            DivisionByZero = 0,
+            InvalidQuaternionSize = 1,
         };
     }
 
