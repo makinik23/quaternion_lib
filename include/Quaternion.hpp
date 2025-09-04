@@ -152,8 +152,87 @@ namespace quaternionlib
 
         constexpr auto operator-() const noexcept -> Quaternion<T>;
 
+        [[nodiscard]] static constexpr auto size() noexcept -> std::size_t;
+        [[nodiscard]] static constexpr auto empty() noexcept -> bool;
+
         constexpr auto operator[](std::size_t index) -> T&;
         constexpr auto operator[](std::size_t index) const -> const T&;
+
+        constexpr auto at(std::size_t index) -> T&;
+        constexpr auto at(std::size_t index) const -> const T&;
+
+        constexpr auto front() noexcept -> T&;
+        constexpr auto front() const noexcept -> const T&;
+
+        constexpr auto back() noexcept -> T&;
+        constexpr auto back() const noexcept -> const T&;
+
+        constexpr auto data() noexcept -> T *;
+        constexpr auto data() const noexcept -> const T *;
+
+        struct iterator
+        {
+        private:
+            Quaternion<T>& quaternion;
+            std::size_t index;
+
+        public:
+            using iterator_category = std::forward_iterator_tag;
+            using value_type = T;
+            using difference_type = std::ptrdiff_t;
+            using pointer = T *;
+            using reference = T&;
+            using const_reference = const T&;
+
+            constexpr iterator() = default;
+            constexpr iterator(Quaternion<T>&, std::size_t) noexcept;
+            constexpr auto operator*() noexcept -> reference;
+            constexpr auto operator*() const noexcept -> const_reference;
+            constexpr auto operator++() noexcept -> iterator&;
+            constexpr auto operator++(int) noexcept -> iterator;
+            constexpr auto operator->() noexcept -> pointer
+            {
+                return &quaternion._data[index];
+            }
+            constexpr inline auto operator==(const iterator& other) const noexcept -> bool;
+            constexpr inline auto operator!=(const iterator& other) const noexcept -> bool;
+            friend class Quaternion;
+        };
+
+        struct const_iterator
+        {
+        private:
+            const Quaternion<T>& quaternion;
+            std::size_t index;
+
+        public:
+            using iterator_category = std::forward_iterator_tag;
+            using value_type = T;
+            using difference_type = std::ptrdiff_t;
+            using pointer = T *;
+            using reference = T&;
+            using const_reference = const T&;
+
+            constexpr const_iterator(const Quaternion<T>&, std::size_t) noexcept;
+            constexpr auto operator*() const noexcept -> const_reference; // CHECK
+            constexpr auto operator++() noexcept -> const_iterator&;
+            constexpr auto operator++(int) noexcept -> const_iterator;
+            constexpr auto operator->() noexcept -> pointer
+            {
+                return &quaternion._data[index];
+            }
+            constexpr inline auto operator==(const iterator& other) const noexcept -> bool;
+            constexpr inline auto operator!=(const iterator& other) const noexcept -> bool;
+            friend class Quaternion;
+        };
+
+        [[nodiscard]] constexpr auto begin() noexcept -> iterator;
+        [[nodiscard]] constexpr auto begin() const noexcept -> const_iterator;
+        [[nodiscard]] constexpr auto cbegin() const noexcept -> const_iterator;
+
+        [[nodiscard]] constexpr auto end() noexcept -> iterator;
+        [[nodiscard]] constexpr auto end() const noexcept -> const_iterator;
+        [[nodiscard]] constexpr auto cend() const noexcept -> const_iterator;
 
     private:
         std::array<T, 4> _data{};
@@ -236,8 +315,8 @@ namespace quaternionlib
     template <details::Arithmetic U>
     requires details::QuaternionConvertible<U, T>
     constexpr Quaternion<T>::Quaternion(const Quaternion<U>& other) noexcept
-        : _data{static_cast<T>(other.X()), static_cast<T>(other.Y()),
-                static_cast<T>(other.Z()), static_cast<T>(other.W())}
+        : _data{static_cast<T>(other.X()), static_cast<T>(other.Y()), static_cast<T>(other.Z()),
+                static_cast<T>(other.W())}
     {
     }
 
@@ -336,7 +415,7 @@ namespace quaternionlib
     template <details::Arithmetic T>
     constexpr auto Quaternion<T>::VectorPart() const noexcept -> std::array<T, 3>
     {
-        return { _data[0], _data[1], _data[2] };
+        return {_data[0], _data[1], _data[2]};
     }
 
     template <details::Arithmetic T>
@@ -351,13 +430,15 @@ namespace quaternionlib
     template <details::Arithmetic T>
     constexpr auto Quaternion<T>::Norm() const noexcept -> T
     {
-        return std::sqrt((_data[0] * _data[0]) + (_data[1] * _data[1]) + (_data[2] * _data[2]) + (_data[3] * _data[3]));
+        return std::sqrt((_data[0] * _data[0]) + (_data[1] * _data[1]) + (_data[2] * _data[2]) +
+                         (_data[3] * _data[3]));
     }
 
     template <details::Arithmetic T>
     constexpr auto Quaternion<T>::SquaredNorm() const noexcept -> T
     {
-        return (_data[0] * _data[0]) + (_data[1] * _data[1]) + (_data[2] * _data[2]) + (_data[3] * _data[3]);
+        return (_data[0] * _data[0]) + (_data[1] * _data[1]) + (_data[2] * _data[2]) +
+               (_data[3] * _data[3]);
     }
 
     template <details::Arithmetic T>
@@ -416,8 +497,8 @@ namespace quaternionlib
     requires details::QuaternionConvertible<T, U>
     constexpr Quaternion<T>::operator Quaternion<U>() const noexcept
     {
-        return Quaternion<U>{static_cast<U>(_data[0]), static_cast<U>(_data[1]), static_cast<U>(_data[2]),
-                             static_cast<U>(_data[3])};
+        return Quaternion<U>{static_cast<U>(_data[0]), static_cast<U>(_data[1]),
+                             static_cast<U>(_data[2]), static_cast<U>(_data[3])};
     }
 
     template <details::Arithmetic T>
@@ -449,7 +530,8 @@ namespace quaternionlib
     template <details::Arithmetic T>
     constexpr auto operator<<(std::ostream& os, const Quaternion<T>& q) -> std::ostream&
     {
-        return os << "Quaternion(" << q._data[0] << ", " << q._data[1] << ", " << q._data[2] << ", " << q._data[3] << ")";
+        return os << "Quaternion(" << q._data[0] << ", " << q._data[1] << ", " << q._data[2] << ", "
+                  << q._data[3] << ")";
     }
 
     template <details::Arithmetic T, details::Arithmetic U>
@@ -628,6 +710,18 @@ namespace quaternionlib
     }
 
     template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::size() noexcept -> std::size_t
+    {
+        return 4;
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::empty() noexcept -> bool
+    {
+        return false;
+    }
+
+    template <details::Arithmetic T>
     constexpr auto Quaternion<T>::operator[](std::size_t index) -> T&
     {
         switch (index)
@@ -661,6 +755,197 @@ namespace quaternionlib
         default:
             throw std::out_of_range("Index out of bounds for Quaternion access.");
         }
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::at(std::size_t index) -> T&
+    {
+        if (index >= 4)
+        {
+            throw std::out_of_range("Index out of bounds for Quaternion access.");
+        }
+
+        return _data[index];
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::at(std::size_t index) const -> const T&
+    {
+        if (index >= 4)
+        {
+            throw std::out_of_range("Index out of bounds for Quaternion access.");
+        }
+
+        return _data[index];
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::front() noexcept -> T&
+    {
+        return _data[0];
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::front() const noexcept -> const T&
+    {
+        return _data[0];
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::back() noexcept -> T&
+    {
+        return _data[3];
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::back() const noexcept -> const T&
+    {
+        return _data[3];
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::data() noexcept -> T *
+    {
+        return _data.data();
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::data() const noexcept -> const T *
+    {
+        return _data.data();
+    }
+
+    template <details::Arithmetic T>
+    constexpr Quaternion<T>::iterator::iterator(Quaternion<T>& q, std::size_t idx) noexcept
+        : quaternion{q}, index{idx}
+    {
+    }
+
+    template <details::Arithmetic T>
+    constexpr Quaternion<T>::const_iterator::const_iterator(const Quaternion<T>& q,
+                                                            std::size_t idx) noexcept
+        : quaternion{q}, index{idx}
+    {
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::iterator::operator*() noexcept -> T&
+    {
+        return quaternion._data[index];
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::iterator::operator*() const noexcept -> const T&
+    {
+        return quaternion._data[index];
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::const_iterator::operator*() const noexcept
+        -> const T& // TODO check
+    {
+        // if (index >= 4 or index < 0)
+        // {
+        //     return T{};
+        // }
+
+        // return quaternion._data[index];
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::iterator::operator++() noexcept -> Quaternion<T>::iterator&
+    {
+        ++index;
+        return *this;
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::const_iterator::operator++() noexcept
+        -> Quaternion<T>::const_iterator&
+    {
+        ++index;
+        return *this;
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::iterator::operator++(int) noexcept -> Quaternion<T>::iterator
+    {
+        auto temp = *this;
+        ++(*this);
+        return temp;
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::const_iterator::operator++(int) noexcept
+        -> Quaternion<T>::const_iterator
+    {
+        auto temp = *this;
+        ++(*this);
+        return temp;
+    }
+
+    template <details::Arithmetic T>
+    constexpr inline auto Quaternion<T>::iterator::operator==(const iterator& other) const noexcept
+        -> bool
+    {
+        return index == other.index;
+    }
+
+    template <details::Arithmetic T>
+    constexpr inline auto
+    Quaternion<T>::const_iterator::operator==(const iterator& other) const noexcept -> bool
+    {
+        return index == other.index;
+    }
+
+    template <details::Arithmetic T>
+    constexpr inline auto Quaternion<T>::iterator::operator!=(const iterator& other) const noexcept
+        -> bool
+    {
+        return not(*this == other);
+    }
+
+    template <details::Arithmetic T>
+    constexpr inline auto
+    Quaternion<T>::const_iterator::operator!=(const iterator& other) const noexcept -> bool
+    {
+        return not(*this == other);
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::begin() noexcept -> Quaternion<T>::iterator
+    {
+        return iterator{*this, 0};
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::begin() const noexcept -> Quaternion<T>::const_iterator
+    {
+        return const_iterator{*this, 0};
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::cbegin() const noexcept -> Quaternion<T>::const_iterator
+    {
+        return const_iterator{*this, 0};
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::end() noexcept -> Quaternion<T>::iterator
+    {
+        return iterator{*this, 4};
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::end() const noexcept -> Quaternion<T>::const_iterator
+    {
+        return iterator{*this, 4};
+    }
+
+    template <details::Arithmetic T>
+    constexpr auto Quaternion<T>::cend() const noexcept -> Quaternion<T>::const_iterator
+    {
+        return iterator{*this, 4};
     }
 
     template <details::Arithmetic T>

@@ -3,6 +3,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <iostream>
+#include <ranges>
+#include <vector>
+#include <numeric>
 
 using Catch::Approx;
 using quaternionlib::EPSILON;
@@ -526,14 +529,103 @@ TEST_CASE("Hamilton product")
     }
 }
 
-TEST_CASE("Square brackets member access operator")
+TEST_CASE("STL-like behavior")
 {
-    constexpr quaternionlib::Quaternion q{1, 2, 3, 4};
+    SECTION("Size")
+    {
+        constexpr quaternionlib::Quaternion q{1, 2, 3, 4};
 
-    REQUIRE(q[0] == 1);
-    REQUIRE(q[1] == 2);
-    REQUIRE(q[2] == 3);
-    REQUIRE(q[3] == 4);
+        REQUIRE(q.size() == 4);
+    }
+
+    SECTION("Bracket operator member access")
+    {
+        constexpr quaternionlib::Quaternion q{1, 2, 3, 4};
+
+        REQUIRE(q[0] == 1);
+        REQUIRE(q[1] == 2);
+        REQUIRE(q[2] == 3);
+        REQUIRE(q[3] == 4);
+    }
+
+    SECTION("Bracket operator member access - out of range")
+    {
+        constexpr auto accessOutOfRange = []()
+        {
+            constexpr quaternionlib::Quaternion q{1, 2, 3, 4};
+            return q[4];
+        };
+
+        REQUIRE_THROWS_AS(accessOutOfRange(), std::out_of_range);
+    }
+
+    SECTION("At() member access")
+    {
+        constexpr quaternionlib::Quaternion q{1, 2, 3, 4};
+
+        REQUIRE(q.at(0) == 1);
+        REQUIRE(q.at(1) == 2);
+        REQUIRE(q.at(2) == 3);
+        REQUIRE(q.at(3) == 4);
+    }
+
+    SECTION("At() member access - out of range")
+    {
+        constexpr auto accessOutOfRange = []()
+        {
+            constexpr quaternionlib::Quaternion q{1, 2, 3, 4};
+            return q.at(4);
+        };
+
+        REQUIRE_THROWS_AS(accessOutOfRange(), std::out_of_range);
+    }
+
+    SECTION("Front and back")
+    {
+        quaternionlib::Quaternion q{1, 2, 3, 4};
+
+        REQUIRE(q.front() == 1);
+        REQUIRE(q.back() == 4);
+
+        q.front() = 5;
+        q.back() = 6;
+
+        REQUIRE(q.front() == 5);
+        REQUIRE(q.back() == 6);
+    }
+
+    SECTION("Data")
+    {
+        quaternionlib::Quaternion<int> q{1, 2, 3, 4};
+        int* data = q.data();
+
+        REQUIRE(data[0] == 1);
+        REQUIRE(data[1] == 2);
+        REQUIRE(data[2] == 3);
+        REQUIRE(data[3] == 4);
+
+        data[0] = 5;
+        data[1] = 6;
+        data[2] = 7;
+        data[3] = 8;
+
+        REQUIRE(q.X() == 5);
+        REQUIRE(q.Y() == 6);
+        REQUIRE(q.Z() == 7);
+        REQUIRE(q.W() == 8);
+    }
+
+    SECTION("Iterators")
+    {
+        quaternionlib::Quaternion<int> q{1, 2, 3, 4};
+        int value = 1;
+
+        for (auto it = q.begin(); it != q.end(); ++it)
+        {
+            REQUIRE(*it == value);
+            ++value;
+        }
+    }
 }
 
 TEST_CASE("Swapping quaternions")
@@ -708,3 +800,113 @@ TEST_CASE("AngleBetween")
         REQUIRE(angle1 == angle2);
     }
 }
+
+// TEST_CASE("Quaternion iterators: basic forward iteration")
+// {
+//     using quaternionlib::Quaternion;
+
+//     Quaternion<int> q{1,2,3,4};
+
+//     // distance == 4
+//     auto a = std::ranges::distance(q);
+//     // REQUIRE(std::ranges::distance(q) == 4);
+
+//     // order & deref
+//     auto it = q.begin();
+//     REQUIRE(*it == 1);
+//     ++it; REQUIRE(*it == 2);
+//     it++; REQUIRE(*it == 3);
+//     ++it; REQUIRE(*it == 4);
+//     ++it; REQUIRE(it == q.end());
+
+//     // mutation via iterator
+//     q.begin().operator*() = 10;
+//     REQUIRE(q.X() == 10); // aliasing OK
+// }
+
+// TEST_CASE("Quaternion iterators: const correctness")
+// {
+//     using quaternionlib::Quaternion;
+
+//     const Quaternion<int> q{1,2,3,4};
+//     auto cit = q.begin();               // const_iterator
+//     REQUIRE(*cit == 1);
+//     // *cit = 7; // powinno NIE kompilować – sprawdzane przez kompilator, nie w runtime
+
+//     // const_iterator z iteratora
+//     Quaternion<int> m{5,6,7,8};
+//     auto it  = m.begin();
+//     quaternionlib::Quaternion<int>::const_iterator cc = it;
+//     REQUIRE(*cc == 5);
+// }
+
+// TEST_CASE("Quaternion iterators: algorithms interoperability")
+// {
+//     using quaternionlib::Quaternion;
+
+//     Quaternion<int> q{};
+//     // iota ustawia 1..4
+//     std::iota(q.begin(), q.end(), 1);
+//     REQUIRE(q[0] == 1);
+//     REQUIRE(q[1] == 2);
+//     REQUIRE(q[2] == 3);
+//     REQUIRE(q[3] == 4);
+
+//     // accumulate
+//     int sum = std::accumulate(q.begin(), q.end(), 0);
+//     REQUIRE(sum == 10);
+
+//     // copy to vector
+//     std::vector<int> v;
+//     std::copy(q.begin(), q.end(), std::back_inserter(v));
+//     REQUIRE(v == std::vector<int>({1,2,3,4}));
+
+//     // ranges::for_each – zwiększ każdy o 1
+//     std::ranges::for_each(q, [](int& x){ ++x; });
+//     REQUIRE(q[0]==2 && q[1]==3 && q[2]==4 && q[3]==5);
+// }
+
+// TEST_CASE("Quaternion iterators: begin/end invariants")
+// {
+//     using quaternionlib::Quaternion;
+
+//     Quaternion<int> q{9,8,7,6};
+//     REQUIRE(q.begin() != q.end());
+
+//     // post-increment returns old position
+//     auto it = q.begin();
+//     auto old = it++;
+//     REQUIRE(*old == 9);
+//     REQUIRE(*it  == 8);
+// }
+
+// TEST_CASE("Quaternion const range loop")
+// {
+//     using quaternionlib::Quaternion;
+
+//     const Quaternion<int> q{1,2,3,4};
+//     std::vector<int> v;
+//     for (auto&& e : q) v.push_back(e);
+//     REQUIRE(v == std::vector<int>({1,2,3,4}));
+// }
+
+// TEST_CASE("Quaternion operator[] and exceptions")
+// {
+//     using quaternionlib::Quaternion;
+
+//     Quaternion<int> q{1,2,3,4};
+//     q[0] = 42;
+//     REQUIRE(q.X() == 42);
+
+//     REQUIRE_NOTHROW(q[3]);
+//     REQUIRE_THROWS_AS(q[4], std::out_of_range);
+// }
+
+// //
+// // Compile-time checks (jeśli masz oddzielny TU na static_asserty)
+// //
+// static_assert(std::ranges::forward_range<quaternionlib::Quaternion<int>&>);
+// static_assert(std::ranges::sized_range<quaternionlib::Quaternion<int>&>);
+// static_assert(std::ranges::common_range<quaternionlib::Quaternion<int>&>);
+// // jeśli zrobiłeś random-access, odkomentuj:
+// // static_assert(std::ranges::random_access_range<quaternionlib::Quaternion<int>&>);
